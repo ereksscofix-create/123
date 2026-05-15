@@ -6,19 +6,31 @@ checkLogin();
 
 if (!isset($_GET['id'])) die("Посылка не выбрана");
 $parcel_id = (int)$_GET['id'];
-$with_secret = isset($_GET['with_secret']) && $_GET['with_secret'] == '1';
 
 try {
-    $stmt = $pdo->prepare("SELECT p.*, s.name AS sender_name, r.name AS recipient_name,
-                                  (SELECT secret_code FROM parcel_codes WHERE parcel_id = p.id AND code_date = DATE(NOW()) LIMIT 1) AS secret_code
+    $stmt = $pdo->prepare("SELECT p.*, s.name AS sender_name, r.name AS recipient_name
                            FROM parcels p
-                           JOIN users s ON p.sender_id = s.id
-                           JOIN users r ON p.recipient_id = r.id
-                           WHERE p.id = :pid
-                           LIMIT 1");
+                           LEFT JOIN users s ON p.sender_id = s.id
+                           LEFT JOIN users r ON p.recipient_id = r.id
+                           WHERE p.id = :pid LIMIT 1");
     $stmt->execute(['pid' => $parcel_id]);
     $parcel = $stmt->fetch();
     if (!$parcel) die("Посылка не найдена");
+
+    // Генерируем секретный код для ярлыка (если его еще нет на сегодня)
+    $stmt = $pdo->prepare("SELECT secret_code FROM parcel_codes WHERE parcel_id = :pid AND code_date = DATE(NOW()) LIMIT 1");
+    $stmt->execute(['pid' => $parcel_id]);
+    $existing = $stmt->fetch();
+
+    if ($existing) {
+        $secret_code = $existing['secret_code'];
+    } else {
+        $secret_code = rand(100000, 999999);
+        $code = rand(1000, 9999);
+        $stmt = $pdo->prepare("INSERT INTO parcel_codes (parcel_id, code, secret_code, code_date) VALUES (:pid, :code, :secret, DATE(NOW()))");
+        $stmt->execute(['pid' => $parcel_id, 'code' => $code, 'secret' => $secret_code]);
+    }
+
 } catch (PDOException $e) {
     die("Ошибка БД: " . htmlspecialchars($e->getMessage()));
 }
@@ -31,76 +43,77 @@ try {
 <title>Ярлык: <?php echo htmlspecialchars($parcel['track_code']); ?></title>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 <style>
-  body{font-family: Arial,Helvetica,sans-serif;background:#fff;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center}
-  .label{width:400px;padding:20px;border:2px solid #000;box-sizing:border-box;background:#fff;margin-top:10px}
-  .hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #000;padding-bottom:10px;margin-bottom:10px}
-  .brand{font-weight:700;font-size:24px}
-  .small{font-size:12px;color:#000}
-  .section{margin-top:12px}
-  .bold{font-weight:700}
-  .barcode-container{margin:15px 0;text-align:center}
-  .secret{font-family:'Courier New',monospace;font-size:28px;font-weight:900;letter-spacing:4px;text-align:center;margin:10px 0;border:2px dashed #000;padding:10px}
-  .sig{display:flex;justify-content:space-between;align-items:center;margin-top:20px}
-  @media print{ .no-print{display:none} body{padding:0} .label{margin-top:0;border:1px solid #000} }
-  .btn{padding:10px 20px;cursor:pointer;background:#4361ee;color:#fff;border:none;border-radius:5px;font-size:16px;text-decoration:none}
-  .btn-secondary{background:#6c757d}
+  body{font-family: 'Inter', Arial, sans-serif;background:#fff;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center}
+  .label{width:400px;padding:25px;border:3px solid #000;box-sizing:border-box;background:#fff;position:relative}
+  .hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:15px}
+  .brand{font-weight:900;font-size:28px;letter-spacing:-1px}
+  .date{font-size:12px;text-align:right;font-weight:bold}
+  .section{margin-top:15px}
+  .bold{font-weight:800}
+  .barcode-container{margin:20px 0;text-align:center}
+  .secret-box{margin-top:20px;border:2px dashed #000;padding:15px;text-align:center;background:#f9f9f9}
+  .secret-label{font-size:10px;font-weight:bold;text-transform:uppercase;margin-bottom:5px;display:block}
+  .secret-value{font-family:'Courier New',monospace;font-size:32px;font-weight:900;letter-spacing:5px}
+  .info-table{width:100%;font-size:13px;border-collapse:collapse}
+  .info-table td{padding:4px 0;vertical-align:top}
+  .sig{display:flex;justify-content:space-between;align-items:center;margin-top:25px;border-top:1px solid #000;padding-top:10px}
+  @media print{ .no-print{display:none} body{padding:0} .label{margin-top:0;border:2px solid #000} }
+  .btn{padding:12px 24px;cursor:pointer;background:#4361ee;color:#fff;border:none;border-radius:10px;font-weight:700;text-decoration:none;box-shadow:0 4px 10px rgba(67,97,238,0.3)}
 </style>
 </head>
 <body>
-<div class="no-print" style="margin-bottom:20px;display:flex;gap:10px">
-  <button class="btn" onclick="window.print()">Печать</button>
-  <a href="dashboard.php" class="btn btn-secondary">Назад к дашборду</a>
+<div class="no-print" style="margin-bottom:30px;display:flex;gap:15px">
+  <button class="btn" onclick="window.print()">ПЕЧАТЬ ЯРЛЫКА</button>
+  <a href="dashboard.php" class="btn" style="background:#6b7280">ВЕРНУТЬСЯ</a>
 </div>
 
 <div class="label">
   <div class="hdr">
     <div class="brand">EHPST</div>
-    <div class="small text-end"><?php echo date('d.m.Y'); ?><br><?php echo date('H:i'); ?></div>
+    <div class="date"><?php echo date('d.m.Y'); ?><br><?php echo date('H:i'); ?></div>
   </div>
 
   <div class="section">
-    <div class="small bold">Трек-код / Track Code</div>
-    <div class="bold" style="font-size:22px"><?php echo htmlspecialchars($parcel['track_code']); ?></div>
+    <div class="small bold text-uppercase" style="font-size:10px;color:#666">Трек-код отправления</div>
+    <div class="bold" style="font-size:24px"><?php echo htmlspecialchars($parcel['track_code']); ?></div>
   </div>
 
   <div class="barcode-container">
     <svg id="barcode"></svg>
-    <div class="small"><?php echo htmlspecialchars($parcel['track_code']); ?></div>
   </div>
 
   <div class="section">
-    <table style="width:100%; font-size:13px">
-        <tr><td class="bold" style="width:100px">Отправитель:</td><td><?php echo htmlspecialchars($parcel['sender_name']); ?></td></tr>
-        <tr><td class="bold">Получатель:</td><td><?php echo htmlspecialchars($parcel['recipient_name']); ?></td></tr>
-        <tr><td class="bold">Адрес:</td><td><?php echo nl2br(htmlspecialchars($parcel['address'])); ?></td></tr>
+    <table class="info-table">
+        <tr><td class="bold" style="width:110px">ОТПРАВИТЕЛЬ:</td><td><?php echo htmlspecialchars($parcel['sender_name'] ?: 'ID '.$parcel['sender_id']); ?></td></tr>
+        <tr><td class="bold">ПОЛУЧАТЕЛЬ:</td><td><?php echo htmlspecialchars($parcel['recipient_name'] ?: 'ID '.$parcel['recipient_id']); ?></td></tr>
+        <tr><td class="bold">АДРЕС:</td><td style="line-height:1.3"><?php echo nl2br(htmlspecialchars($parcel['address'])); ?></td></tr>
     </table>
   </div>
 
-  <div class="section" style="border-top:1px solid #eee; padding-top:10px; font-size:13px">
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px">
-        <div>Вес: <span class="bold"><?php echo htmlspecialchars($parcel['weight']); ?> кг</span></div>
-        <div>Тариф: <span class="bold"><?php echo htmlspecialchars($parcel['tariff']); ?></span></div>
-        <div>Стоимость: <span class="bold"><?php echo number_format($parcel['cost'],2); ?> BYN</span></div>
-        <div>Налож. плат: <span class="bold"><?php echo ($parcel['cod'] > 0) ? number_format($parcel['cod'],2).' BYN' : 'Нет'; ?></span></div>
+  <div class="section" style="border-top:1px solid #eee; padding-top:10px">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:12px">
+        <div>ВЕС: <span class="bold"><?php echo number_format($parcel['weight'], 3); ?> КГ</span></div>
+        <div>ТАРИФ: <span class="bold"><?php echo htmlspecialchars($parcel['tariff']); ?></span></div>
+        <div>СУММА: <span class="bold"><?php echo number_format($parcel['cost'], 2); ?> BYN</span></div>
+        <div>НАЛ.ПЛ: <span class="bold"><?php echo ($parcel['cod'] > 0) ? number_format($parcel['cod'], 2).' BYN' : 'НЕТ'; ?></span></div>
     </div>
   </div>
 
-  <?php if ($with_secret && !empty($parcel['secret_code'])): ?>
-    <div class="section" style="margin-top:20px">
-      <div class="small bold text-center">СЕКРЕТНЫЙ КОД ВЫДАЧИ</div>
-      <div class="secret"><?php echo htmlspecialchars($parcel['secret_code']); ?></div>
-      <div class="small text-center">Действителен только в день печати ярлыка.</div>
-    </div>
-  <?php endif; ?>
+  <div class="secret-box">
+    <span class="secret-label">Секретный код выдачи</span>
+    <div class="secret-value"><?php echo $secret_code; ?></div>
+    <div style="font-size:9px;margin-top:5px;line-height:1.2">Код действителен только в день печати. Сообщите его работнику почты для получения.</div>
+  </div>
 
   <div class="sig">
-    <div style="flex:1;border-top:1px solid #000;padding-top:6px;font-size:11px">Подпись отправителя / Signature</div>
+    <div style="font-size:10px;font-weight:bold">ПОДПИСЬ ОТПРАВИТЕЛЯ:</div>
+    <div style="width:120px;border-bottom:1px solid #000;height:20px"></div>
   </div>
 </div>
 
 <script>
   JsBarcode("#barcode", "<?php echo htmlspecialchars($parcel['track_code']); ?>", {
-    format: "CODE128", width:2.5, height:60, displayValue:false
+    format: "CODE128", width:2.5, height:70, displayValue:true, fontSize:14, fontOptions:"bold"
   });
 </script>
 </body>
