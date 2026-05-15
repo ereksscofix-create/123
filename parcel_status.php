@@ -5,7 +5,7 @@ require_once __DIR__ . '/functions.php';
 checkLogin();
 
 $user = currentUser();
-if ($user['role'] !== 'worker') {
+if (!$user || $user['role'] !== 'worker') {
     die("Доступ запрещен.");
 }
 
@@ -30,13 +30,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($final_status !== '') {
         try {
+            // Удаляем created_at из запроса
             $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
             $stmt->execute(['pid' => $id, 'txt' => $final_status]);
 
-            // Если статус "Ожидает получения", генерируем код
             if (mb_stripos($final_status, 'ожидает') !== false && mb_stripos($final_status, 'получения') !== false) {
                 $code = rand(1000, 9999);
                 $secret = rand(100000, 999999);
+                // В parcel_codes тоже убираем created_at если он там был (судя по ошибке в других таблицах)
                 $stmt = $pdo->prepare("INSERT INTO parcel_codes (parcel_id, code, secret_code, code_date) VALUES (:pid, :code, :secret, DATE(NOW()))");
                 $stmt->execute(['pid' => $id, 'code' => $code, 'secret' => $secret]);
 
@@ -59,35 +60,35 @@ $page_title = "Смена статуса " . $parcel['track_code'];
 include __DIR__ . '/header.php';
 ?>
 
-<div class="row justify-content-center">
+<div class="row justify-content-center py-4">
     <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-bold">Смена статуса для <?php echo e($parcel['track_code']); ?></h5>
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-header bg-primary text-white py-3 border-0 rounded-top-4">
+                <h5 class="mb-0 fw-bold">Обновление статуса: <?php echo e($parcel['track_code']); ?></h5>
             </div>
             <div class="card-body p-4">
                 <?php if ($error): ?>
-                    <div class="alert alert-danger"><?php echo $error; ?></div>
+                    <div class="alert alert-danger border-0"><?php echo $error; ?></div>
                 <?php endif; ?>
 
                 <form method="post">
-                    <div class="mb-3">
-                        <label class="form-label">Выберите статус или введите свой</label>
-                        <select name="status_text" class="form-select mb-2" onchange="toggleCustomStatus(this.value)">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Выберите новый статус</label>
+                        <select name="status_text" class="form-select form-select-lg mb-3" onchange="toggleCustomStatus(this.value)">
                             <option value="В пути">В пути</option>
                             <option value="Прибыло в сортировочный центр">Прибыло в сортировочный центр</option>
-                            <option value="Ожидает получения">Ожидает получения (сгенерирует код)</option>
+                            <option value="Ожидает получения">Ожидает получения (генерирует код)</option>
                             <option value="Доставлено">Доставлено</option>
                             <option value="custom">-- Свой вариант --</option>
                         </select>
                         <div id="custom_status_div" style="display:none;">
-                            <input type="text" name="custom_status" class="form-control" placeholder="Введите статус...">
+                            <input type="text" name="custom_status" class="form-control" placeholder="Введите статус вручную...">
                         </div>
                     </div>
 
-                    <div class="mt-4">
-                        <button type="submit" class="btn btn-primary w-100">Обновить статус</button>
-                        <a href="dashboard.php" class="btn btn-link w-100 text-muted mt-2">Отмена</a>
+                    <div class="mt-4 pt-3 border-top">
+                        <button type="submit" class="btn btn-primary w-100 btn-lg rounded-pill shadow-sm fw-bold">Обновить статус</button>
+                        <a href="dashboard.php" class="btn btn-link w-100 text-muted mt-2 text-decoration-none">Отмена</a>
                     </div>
                 </form>
             </div>
