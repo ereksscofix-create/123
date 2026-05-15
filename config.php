@@ -1,9 +1,9 @@
 <?php
 // config.php
 $host = 'localhost';
-$db   = 'ehpst_db';
-$user = 'root';
-$pass = '';
+$db   = 'f1211429_ps';
+$user = 'f1211429_ps';
+$pass = 'Alex993399@@';
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
@@ -16,7 +16,6 @@ $options = [
 try {
      $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (\PDOException $e) {
-     // For development/mock purposes, we might not have a real DB connection in the sandbox
-     // throw new \PDOException($e->getMessage(), (int)$e->getCode());
+     die("Ошибка подключения к базе данных: " . $e->getMessage());
 }
 ?>

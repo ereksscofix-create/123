@@ -18,25 +18,29 @@ function checkLogin() {
     }
 }
 
-// Возвращает текущего пользователя из сессии (и читает из БД один раз)
+// Возвращает текущего пользователя из сессии
 function currentUser() {
     global $pdo;
     if (!isset($_SESSION['user_id'])) return null;
     static $user = null;
     if ($user === null) {
         try {
-            $stmt = $pdo->prepare("SELECT id, name, login, role, COALESCE(email,'') AS email FROM users WHERE id = :id LIMIT 1");
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE id = :id LIMIT 1");
             $stmt->execute(['id' => $_SESSION['user_id']]);
             $user = $stmt->fetch();
+            if (!$user) {
+                error_log("currentUser: User ID " . $_SESSION['user_id'] . " not found in DB");
+                return null;
+            }
         } catch (PDOException $e) {
-            error_log("currentUser error: " . $e->getMessage());
+            error_log("currentUser DB error: " . $e->getMessage());
             return null;
         }
     }
     return $user;
 }
 
-// notifyUser: сохраняет уведомление в БД и (опционально) отправляет email, если указан
+// notifyUser: сохраняет уведомление в БД и отправляет email
 function notifyUser(int $user_id, string $message, string $type = 'info', bool $sendEmail = false): bool {
     global $pdo;
     try {
@@ -54,8 +58,8 @@ function notifyUser(int $user_id, string $message, string $type = 'info', bool $
             $u = $stmt->fetch();
             if ($u && !empty($u['email'])) {
                 $to = $u['email'];
-                $subject = (defined('APP_NAME') ? APP_NAME : 'EHPST') . " — уведомление";
-                $body = "<p>Здравствуйте, " . e($u['name'] ?? '') . ".</p><div>" . $message . "</div>";
+                $subject = "EHPST — уведомление";
+                $body = "<p>Здравствуйте, " . e($u['name'] ?? '') . ".</p><div>" . e($message) . "</div>";
                 $headers  = "MIME-Version: 1.0\r\n";
                 $headers .= "Content-type: text/html; charset=utf-8\r\n";
                 $headers .= "From: no-reply@" . ($_SERVER['SERVER_NAME'] ?? 'localhost') . "\r\n";

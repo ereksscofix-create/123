@@ -5,11 +5,12 @@ require_once __DIR__ . '/functions.php';
 checkLogin();
 
 $user = currentUser();
-if ($user['role'] !== 'worker') {
+if (!$user || $user['role'] !== 'worker') {
     die("Доступ запрещен. Только для работников.");
 }
 
 $page_title = "Выдача посылки — EHPST";
+$name = $user['name'] ?: $user['login'];
 $success = '';
 $error = '';
 
@@ -20,7 +21,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $passport = trim($_POST['passport'] ?? '');
 
     try {
-        // Ищем посылку
         $stmt = $pdo->prepare("SELECT id, recipient_id FROM parcels WHERE track_code = :track LIMIT 1");
         $stmt->execute(['track' => $track]);
         $parcel = $stmt->fetch();
@@ -33,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $can_issue = false;
             $method = '';
 
-            // 1. Проверка по коду получения
             if ($code !== '') {
                 $stmt = $pdo->prepare("SELECT id FROM parcel_codes WHERE parcel_id = :pid AND code = :code AND code_date = DATE(NOW()) LIMIT 1");
                 $stmt->execute(['pid' => $parcel_id, 'code' => $code]);
@@ -43,7 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // 2. Проверка по секретному коду
             if (!$can_issue && $secret !== '') {
                 $stmt = $pdo->prepare("SELECT id FROM parcel_codes WHERE parcel_id = :pid AND secret_code = :secret AND code_date = DATE(NOW()) LIMIT 1");
                 $stmt->execute(['pid' => $parcel_id, 'secret' => $secret]);
@@ -53,21 +51,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // 3. Выдача по паспорту
             if (!$can_issue && $passport !== '') {
                 $can_issue = true;
                 $method = "по паспорту ($passport)";
             }
 
             if ($can_issue) {
-                // Обновляем статус
                 $status_text = "Выдана " . $method;
                 $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
                 $stmt->execute(['pid' => $parcel_id, 'txt' => $status_text]);
 
-                // Уведомляем получателя
                 notifyUser($recipient_id, "Ваша посылка $track успешно выдана.");
-
                 $success = "Посылка успешно выдана! Метод: $method";
             } else {
                 $error = "Не удалось подтвердить выдачу. Проверьте код или введите данные паспорта.";
