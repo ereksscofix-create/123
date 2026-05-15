@@ -1,11 +1,10 @@
 <?php
 // functions.php — общие вспомогательные функции
-
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Простая защита XSS в выводе
+// Простая защита XSS
 function e($s) {
     return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
@@ -18,7 +17,7 @@ function checkLogin() {
     }
 }
 
-// Возвращает текущего пользователя из сессии
+// Текущий пользователь
 function currentUser() {
     global $pdo;
     if (!isset($_SESSION['user_id'])) return null;
@@ -28,51 +27,26 @@ function currentUser() {
             $stmt = $pdo->prepare("SELECT * FROM users WHERE id = :id LIMIT 1");
             $stmt->execute(['id' => $_SESSION['user_id']]);
             $user = $stmt->fetch();
-            if (!$user) {
-                error_log("currentUser: User ID " . $_SESSION['user_id'] . " not found in DB");
-                return null;
-            }
         } catch (PDOException $e) {
-            error_log("currentUser DB error: " . $e->getMessage());
             return null;
         }
     }
     return $user;
 }
 
-// notifyUser: сохраняет уведомление в БД и отправляет email
+// Уведомление пользователя
 function notifyUser(int $user_id, string $message, string $type = 'info', bool $sendEmail = false): bool {
     global $pdo;
     try {
+        // Убираем created_at, так как его может не быть
         $stmt = $pdo->prepare("INSERT INTO notifications (user_id, message, type) VALUES (:uid, :msg, :type)");
         $stmt->execute(['uid' => $user_id, 'msg' => $message, 'type' => $type]);
     } catch (PDOException $e) {
-        error_log("notifyUser DB error: " . $e->getMessage());
         return false;
-    }
-
-    if ($sendEmail) {
-        try {
-            $stmt = $pdo->prepare("SELECT email, name FROM users WHERE id = :id LIMIT 1");
-            $stmt->execute(['id' => $user_id]);
-            $u = $stmt->fetch();
-            if ($u && !empty($u['email'])) {
-                $to = $u['email'];
-                $subject = "EHPST — уведомление";
-                $body = "<p>Здравствуйте, " . e($u['name'] ?? '') . ".</p><div>" . e($message) . "</div>";
-                $headers  = "MIME-Version: 1.0\r\n";
-                $headers .= "Content-type: text/html; charset=utf-8\r\n";
-                $headers .= "From: no-reply@" . ($_SERVER['SERVER_NAME'] ?? 'localhost') . "\r\n";
-                @mail($to, $subject, $body, $headers);
-            }
-        } catch (PDOException $e) {
-            error_log("notifyUser email lookup error: " . $e->getMessage());
-        }
     }
     return true;
 }
 
-// Пометить уведомление прочитанным
 function markNotificationRead(int $id, int $user_id): bool {
     global $pdo;
     try {
@@ -80,7 +54,6 @@ function markNotificationRead(int $id, int $user_id): bool {
         $stmt->execute(['id' => $id, 'uid' => $user_id]);
         return true;
     } catch (PDOException $e) {
-        error_log("markNotificationRead error: " . $e->getMessage());
         return false;
     }
 }
