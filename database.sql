@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS `parcels` (
   `payment_method` varchar(20) DEFAULT NULL,
   `receipt_no` varchar(50) DEFAULT NULL,
   `is_return` tinyint(1) DEFAULT '0',
+  `pickup_point` varchar(100) DEFAULT NULL,
+  `shelf` int(11) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `track_code` (`track_code`),

@@ -21,13 +21,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $passport = trim($_POST['passport'] ?? '');
 
     try {
-        $stmt = $pdo->prepare("SELECT id, recipient_id, is_paid, pay_on_delivery, cod, is_cod_paid FROM parcels WHERE track_code = :track LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, recipient_id, is_paid, pay_on_delivery, cod, is_cod_paid, shelf, pickup_point FROM parcels WHERE track_code = :track LIMIT 1");
         $stmt->execute(['track' => $track]);
         $parcel = $stmt->fetch();
 
         if (!$parcel) {
             $error = "Посылка с таким трек-кодом не найдена.";
         } else {
+            if ($parcel['pickup_point'] && $parcel['shelf']) {
+                $success = "📦 ПОСЫЛКА НА ПОЛКЕ: <span class='h4 mb-0 fw-bold text-primary'>{$parcel['shelf']}</span>";
+            }
             $parcel_id = (int)$parcel['id'];
             $recipient_id = (int)$parcel['recipient_id'];
             $can_issue = false;

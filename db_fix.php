@@ -66,7 +66,9 @@ try {
         'pay_on_delivery' => "TINYINT(1) DEFAULT 0 AFTER is_refunded",
         'payment_method' => "VARCHAR(20) DEFAULT NULL AFTER pay_on_delivery",
         'receipt_no' => "VARCHAR(50) DEFAULT NULL AFTER payment_method",
-        'is_return' => "TINYINT(1) DEFAULT 0 AFTER receipt_no"
+        'is_return' => "TINYINT(1) DEFAULT 0 AFTER receipt_no",
+        'pickup_point' => "VARCHAR(100) DEFAULT NULL AFTER is_return",
+        'shelf' => "INT(11) DEFAULT NULL AFTER pickup_point"
     ];
 
     foreach($to_add as $col => $def) {

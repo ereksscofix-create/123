@@ -33,7 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sender_id = (int)($_POST['sender_id'] ?? 0);
     $recipient_id = (int)($_POST['recipient_id'] ?? 0);
     $sender_address = trim($_POST['sender_address'] ?? '');
-    $address = trim($_POST['address'] ?? '');
+    $pickup_point = $_POST['pickup_point'] ?? '';
+    $address = ($pickup_point !== '') ? $pickup_point : trim($_POST['address'] ?? '');
     $weight = (float)($_POST['weight'] ?? 0);
 
     $multiplier = $rates[$tariff_key]['rate'] ?? 10;
@@ -57,12 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Попытка вставить с адресом отправителя и оплатой при получении
                 try {
                     $stmt = $pdo->prepare("INSERT INTO parcels
-                        (track_code, sender_id, recipient_id, sender_address, address, weight, cost, tariff, cod, declared_value, pay_on_delivery)
-                        VALUES (:track, :sid, :rid, :saddr, :addr, :w, :c, :t, :cod, :dv, :pod)");
+                        (track_code, sender_id, recipient_id, sender_address, address, pickup_point, weight, cost, tariff, cod, declared_value, pay_on_delivery)
+                        VALUES (:track, :sid, :rid, :saddr, :addr, :pvz, :w, :c, :t, :cod, :dv, :pod)");
 
                     $stmt->execute([
                         'track' => $track, 'sid' => $sender_id, 'rid' => $recipient_id,
-                        'saddr' => $sender_address, 'addr' => $address, 'w' => $weight,
+                        'saddr' => $sender_address, 'addr' => $address, 'pvz' => $pickup_point, 'w' => $weight,
                         'c' => $cost, 't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'pod' => $pay_on_delivery
                     ]);
                 } catch (PDOException $e) {
@@ -168,8 +169,15 @@ include __DIR__ . '/header.php';
                         <textarea name="sender_address" class="form-control rounded-3" rows="2" placeholder="Откуда (необязательно)"></textarea>
                     </div>
                     <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Тип доставки / ПВЗ</label>
+                        <select name="pickup_point" class="form-select form-select-lg rounded-3" onchange="toggleAddress(this.value)">
+                            <option value="">Курьерская (по адресу)</option>
+                            <option value="Минск_ЕН_Main">ПВЗ: Минск_ЕН_Main</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6" id="addressCol">
                         <label class="form-label fw-bold text-muted small text-uppercase">Адрес доставки</label>
-                        <textarea name="address" class="form-control rounded-3" rows="2" required placeholder="Куда (точно)"></textarea>
+                        <textarea name="address" id="addressInput" class="form-control rounded-3" rows="2" required placeholder="Куда (точно)"></textarea>
                     </div>
 
                     <div class="col-md-6">
@@ -215,6 +223,20 @@ document.addEventListener('DOMContentLoaded', function() {
     weightInput.addEventListener('input', calculate);
     calculate();
 });
+
+function toggleAddress(val) {
+    const col = document.getElementById('addressCol');
+    const input = document.getElementById('addressInput');
+    if (val !== '') {
+        col.style.opacity = '0.5';
+        input.disabled = true;
+        input.value = 'Доставка в ПВЗ: ' + val;
+    } else {
+        col.style.opacity = '1';
+        input.disabled = false;
+        input.value = '';
+    }
+}
 </script>
 
 <?php include __DIR__ . '/footer.php'; ?>

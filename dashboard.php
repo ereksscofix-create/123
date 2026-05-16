@@ -259,6 +259,9 @@ include __DIR__ . '/header.php';
                                                 <?php if ($role === 'worker' && $p['is_cod_paid'] && !$p['is_cod_issued']): ?>
                                                     <li><a class="dropdown-item py-2 fw-bold text-info" href="parcel_cod_issue.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash me-2"></i>ВЫДАТЬ НАЛ.ПЛ. ОТПРАВИТЕЛЮ</a></li>
                                                 <?php endif; ?>
+                                                <?php if ($role === 'worker' && $p['pickup_point'] && !$p['shelf']): ?>
+                                                    <li><a class="dropdown-item py-2 fw-bold text-primary" href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>"><i class="bi bi-download me-2"></i>ПРИНЯТЬ В ПВЗ</a></li>
+                                                <?php endif; ?>
                                                 <?php if ($role === 'worker' && $p['is_paid'] && !$p['is_refunded']): ?>
                                                     <li><a class="dropdown-item py-2 text-danger" href="parcel_refund.php?id=<?php echo $p['id']; ?>"><i class="bi bi-arrow-counterclockwise me-2"></i>ВОЗВРАТ ДЕНЕГ</a></li>
                                                 <?php endif; ?>
@@ -342,6 +345,9 @@ include __DIR__ . '/header.php';
 
                                 <?php if ($role === 'worker' && $p['cod'] > 0 && !$p['is_cod_paid']): ?>
                                     <a href="parcel_pay_cod.php?id=<?php echo $p['id']; ?>" class="btn btn-primary btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-wallet2 me-1"></i>ПРИНЯТЬ НАЛ.ПЛ.</a>
+                                <?php endif; ?>
+                                <?php if ($role === 'worker' && $p['pickup_point'] && !$p['shelf']): ?>
+                                    <a href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>" class="btn btn-primary btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-download me-1"></i>ПРИНЯТЬ В ПВЗ</a>
                                 <?php endif; ?>
                                 <div class="d-flex gap-2">
                                     <div class="dropdown">
