@@ -63,10 +63,11 @@ try {
     $where = [];
 
     if ($role !== 'worker') {
-        // ВАЖНО: Используем разные имена для плейсхолдеров, чтобы избежать конфликтов в некоторых версиях PDO
-        $where[] = "(p.sender_id = :uid_sender OR p.recipient_id = :uid_recipient)";
+        // ВАЖНО: Видим свои (отправил/получил) И те, на которые подписались
+        $where[] = "(p.sender_id = :uid_sender OR p.recipient_id = :uid_recipient OR EXISTS(SELECT 1 FROM parcel_followers WHERE user_id = :uid_follow AND parcel_id = p.id))";
         $params['uid_sender'] = $user_id;
         $params['uid_recipient'] = $user_id;
+        $params['uid_follow'] = $user_id;
     }
 
     if ($filter === 'in_transit') {
@@ -212,6 +213,9 @@ include __DIR__ . '/header.php';
                                             <?php if ($p['is_return']): ?>
                                                 <span class="badge bg-warning bg-opacity-10 text-dark x-small fw-bold ms-1">ВОЗВРАТ</span>
                                             <?php endif; ?>
+                                            <?php if ($p['pay_on_delivery']): ?>
+                                                <span class="badge bg-info bg-opacity-10 text-info x-small fw-bold ms-1">ПРИ ПОЛУЧЕНИИ</span>
+                                            <?php endif; ?>
                                         </div>
                                             <?php
                                                 $st = $p['last_status'] ?: 'Оформлена';
@@ -240,6 +244,9 @@ include __DIR__ . '/header.php';
                                                     <li><a class="dropdown-item py-2" href="parcel_edit.php?id=<?php echo $p['id']; ?>"><i class="bi bi-pencil-square me-2 text-warning"></i>Изменить</a></li>
                                                     <?php if ($role === 'worker'): ?>
                                                         <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_status.php?id=<?php echo $p['id']; ?>"><i class="bi bi-plus-circle me-2"></i>Новый статус</a></li>
+                                                    <?php if($p['is_paid'] && !$p['is_return']): ?>
+                                                        <li><a class="dropdown-item py-2 text-danger" href="javascript:void(0)" onclick="confReturn(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-arrow-return-left me-2"></i>Оформить возврат</a></li>
+                                                    <?php endif; ?>
                                                     <?php endif; ?>
                                                     <li><hr class="dropdown-divider"></li>
                                                     <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confDel(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-trash3 me-2"></i>Удалить</a></li>
@@ -285,6 +292,9 @@ include __DIR__ . '/header.php';
                                     <?php endif; ?>
                                     <?php if ($p['is_return']): ?>
                                         <span class="badge bg-warning bg-opacity-10 text-dark x-small fw-bold ms-1">ВОЗВРАТ</span>
+                                    <?php endif; ?>
+                                    <?php if ($p['pay_on_delivery']): ?>
+                                        <span class="badge bg-info bg-opacity-10 text-info x-small fw-bold ms-1">ПРИ ПОЛУЧЕНИИ</span>
                                     <?php endif; ?>
                                 </div>
                                 <div class="mb-3">
@@ -369,6 +379,11 @@ include __DIR__ . '/header.php';
 function confDel(id, track) {
     if (confirm('ВНИМАНИЕ! Посылка ' + track + ' будет полностью удалена. Продолжить?')) {
         window.location.href = 'parcel_delete.php?id=' + id;
+    }
+}
+function confReturn(id, track) {
+    if (confirm('Вы уверены, что хотите оформить возврат для оплаченной посылки ' + track + '?')) {
+        window.location.href = 'parcel_return.php?id=' + id;
     }
 }
 </script>

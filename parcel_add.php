@@ -41,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $cod = (float)($_POST['cod'] ?? 0);
     $declared_value = (float)($_POST['declared_value'] ?? 0);
+    $pay_on_delivery = isset($_POST['pay_on_delivery']) ? 1 : 0;
 
     if ($sender_id <= 0 || $recipient_id <= 0 || empty($address)) {
         $error = "Пожалуйста, заполните все обязательные поля.";
@@ -53,20 +54,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!in_array($sender_id, $found_ids) || !in_array($recipient_id, $found_ids)) {
                 $error = "Один или оба ID пользователей не найдены.";
             } else {
-                // Попытка вставить с адресом отправителя
+                // Попытка вставить с адресом отправителя и оплатой при получении
                 try {
                     $stmt = $pdo->prepare("INSERT INTO parcels
-                        (track_code, sender_id, recipient_id, sender_address, address, weight, cost, tariff, cod, declared_value)
-                        VALUES (:track, :sid, :rid, :saddr, :addr, :w, :c, :t, :cod, :dv)");
+                        (track_code, sender_id, recipient_id, sender_address, address, weight, cost, tariff, cod, declared_value, pay_on_delivery)
+                        VALUES (:track, :sid, :rid, :saddr, :addr, :w, :c, :t, :cod, :dv, :pod)");
 
                     $stmt->execute([
                         'track' => $track, 'sid' => $sender_id, 'rid' => $recipient_id,
                         'saddr' => $sender_address, 'addr' => $address, 'w' => $weight,
-                        'c' => $cost, 't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value
+                        'c' => $cost, 't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'pod' => $pay_on_delivery
                     ]);
                 } catch (PDOException $e) {
-                    if (strpos($e->getMessage(), 'sender_address') !== false) {
-                        // Если колонки нет — вставляем БЕЗ неё, но выводим предупреждение
+                    if (strpos($e->getMessage(), 'sender_address') !== false || strpos($e->getMessage(), 'pay_on_delivery') !== false) {
+                        // Если колонок нет — вставляем БЕЗ них, но выводим предупреждение
                         $stmt = $pdo->prepare("INSERT INTO parcels
                             (track_code, sender_id, recipient_id, address, weight, cost, tariff, cod, declared_value)
                             VALUES (:track, :sid, :rid, :addr, :w, :c, :t, :cod, :dv)");
@@ -178,6 +179,14 @@ include __DIR__ . '/header.php';
                     <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">Объявл. ценность</label>
                         <input type="number" name="declared_value" class="form-control rounded-3" step="0.01" value="0.00">
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-check form-switch p-3 bg-light rounded-3 border">
+                            <input class="form-check-input ms-0 me-2" type="checkbox" name="pay_on_delivery" id="podSwitch">
+                            <label class="form-check-label fw-bold text-primary" for="podSwitch">ОПЛАТА ПРИ ПОЛУЧЕНИИ</label>
+                            <div class="form-text small">Если выбрано, отправитель не платит при оформлении. Посылку оплатит получатель.</div>
+                        </div>
                     </div>
 
                     <div class="col-12 mt-3 mt-md-5">

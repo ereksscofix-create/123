@@ -60,7 +60,8 @@ try {
     $to_add = [
         'sender_address' => "TEXT DEFAULT NULL AFTER recipient_id",
         'is_paid' => "TINYINT(1) DEFAULT 0 AFTER declared_value",
-        'payment_method' => "VARCHAR(20) DEFAULT NULL AFTER is_paid",
+        'pay_on_delivery' => "TINYINT(1) DEFAULT 0 AFTER is_paid",
+        'payment_method' => "VARCHAR(20) DEFAULT NULL AFTER pay_on_delivery",
         'receipt_no' => "VARCHAR(50) DEFAULT NULL AFTER payment_method",
         'is_return' => "TINYINT(1) DEFAULT 0 AFTER receipt_no"
     ];
@@ -87,6 +88,19 @@ try {
         }
         echo "</li>";
     }
+
+    // 5. Создание таблицы parcel_followers
+    echo "<li>Создание таблицы parcel_followers... ";
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `parcel_followers` (
+      `id` int(11) NOT NULL AUTO_INCREMENT,
+      `user_id` int(11) NOT NULL,
+      `parcel_id` int(11) NOT NULL,
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `user_parcel` (`user_id`,`parcel_id`),
+      CONSTRAINT `pf_user_fix` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+      CONSTRAINT `pf_parcel_fix` FOREIGN KEY (`parcel_id`) REFERENCES `parcels` (`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    echo "<span class='ok'>ГОТОВО</span></li>";
 
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
     echo "<li>Проверки внешних ключей включены.</li>";

@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $passport = trim($_POST['passport'] ?? '');
 
     try {
-        $stmt = $pdo->prepare("SELECT id, recipient_id FROM parcels WHERE track_code = :track LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, recipient_id, is_paid, pay_on_delivery FROM parcels WHERE track_code = :track LIMIT 1");
         $stmt->execute(['track' => $track]);
         $parcel = $stmt->fetch();
 
@@ -54,6 +54,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$can_issue && $passport !== '') {
                 $can_issue = true;
                 $method = "по паспорту ($passport)";
+            }
+
+            if ($can_issue) {
+                if (!$parcel['is_paid']) {
+                    $error = "Посылка не оплачена! Перейдите к оплате: <a href='parcel_pay.php?id={$parcel['id']}'>ОПЛАТИТЬ</a>";
+                    $can_issue = false;
+                }
             }
 
             if ($can_issue) {

@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS `parcels` (
   `cod` decimal(10,2) DEFAULT '0.00',
   `declared_value` decimal(10,2) DEFAULT '0.00',
   `is_paid` tinyint(1) DEFAULT '0',
+  `pay_on_delivery` tinyint(1) DEFAULT '0',
   `payment_method` varchar(20) DEFAULT NULL,
   `receipt_no` varchar(50) DEFAULT NULL,
   `is_return` tinyint(1) DEFAULT '0',
@@ -86,12 +87,20 @@ CREATE TABLE IF NOT EXISTS `parcel_codes` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `parcel_id` (`parcel_id`),
-  -- Убрана уникальность для parcel_id, чтобы можно было генерировать несколько кодов для одной посылки
   CONSTRAINT `parcel_codes_ibfk_1` FOREIGN KEY (`parcel_id`) REFERENCES `parcels` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Если у вас уже есть таблица и возникает ошибка Duplicate entry, выполните:
--- ALTER TABLE parcel_codes DROP INDEX parcel_id;
--- ALTER TABLE parcel_codes ADD INDEX parcel_id (parcel_id);
+-- ----------------------------
+-- Table structure for parcel_followers
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `parcel_followers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `parcel_id` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `user_parcel` (`user_id`,`parcel_id`),
+  CONSTRAINT `pf_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `pf_parcel` FOREIGN KEY (`parcel_id`) REFERENCES `parcels` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;
