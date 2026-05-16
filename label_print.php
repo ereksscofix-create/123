@@ -111,9 +111,20 @@ try {
                 $to = $r_display;
             }
         ?>
-        <tr><td class="bold" style="width:110px">ОТПРАВИТЕЛЬ:</td><td><?php echo $from; ?></td></tr>
-        <tr><td class="bold">ПОЛУЧАТЕЛЬ:</td><td><?php echo $to; ?></td></tr>
-        <tr><td class="bold">АДРЕС:</td><td style="line-height:1.3"><?php echo nl2br(htmlspecialchars($parcel['address'])); ?></td></tr>
+        <?php
+            $s_addr = $parcel['sender_address'] ?: 'Не указан';
+            $r_addr = $parcel['address'] ?: 'Не указан';
+
+            if ($is_return) {
+                $from_addr = $r_addr;
+                $to_addr = $s_addr;
+            } else {
+                $from_addr = $s_addr;
+                $to_addr = $r_addr;
+            }
+        ?>
+        <tr><td class="bold" style="width:110px">ОТПРАВИТЕЛЬ:</td><td><?php echo $from; ?><br><span style="font-size:11px;opacity:0.8"><?php echo nl2br(htmlspecialchars($from_addr)); ?></span></td></tr>
+        <tr><td class="bold">ПОЛУЧАТЕЛЬ:</td><td><?php echo $to; ?><br><span style="font-size:11px;opacity:0.8"><?php echo nl2br(htmlspecialchars($to_addr)); ?></span></td></tr>
     </table>
   </div>
 

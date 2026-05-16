@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS `parcels` (
   `track_code` varchar(20) NOT NULL,
   `sender_id` int(11) NOT NULL,
   `recipient_id` int(11) NOT NULL,
+  `sender_address` text DEFAULT NULL,
   `address` text NOT NULL,
   `weight` decimal(10,3) DEFAULT '0.000',
   `cost` decimal(10,2) DEFAULT '0.00',

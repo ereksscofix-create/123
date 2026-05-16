@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $sender_id = (int)($_POST['sender_id'] ?? 0);
     $recipient_id = (int)($_POST['recipient_id'] ?? 0);
+    $sender_address = trim($_POST['sender_address'] ?? '');
     $address = trim($_POST['address'] ?? '');
     $weight = (float)($_POST['weight'] ?? 0);
 
@@ -52,21 +53,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!in_array($sender_id, $found_ids) || !in_array($recipient_id, $found_ids)) {
                 $error = "Один или оба ID пользователей не найдены.";
             } else {
-                $stmt = $pdo->prepare("INSERT INTO parcels
-                    (track_code, sender_id, recipient_id, address, weight, cost, tariff, cod, declared_value)
-                    VALUES (:track, :sid, :rid, :addr, :w, :c, :t, :cod, :dv)");
+                // Попытка вставить с адресом отправителя
+                try {
+                    $stmt = $pdo->prepare("INSERT INTO parcels
+                        (track_code, sender_id, recipient_id, sender_address, address, weight, cost, tariff, cod, declared_value)
+                        VALUES (:track, :sid, :rid, :saddr, :addr, :w, :c, :t, :cod, :dv)");
 
-                $stmt->execute([
-                    'track' => $track,
-                    'sid' => $sender_id,
-                    'rid' => $recipient_id,
-                    'addr' => $address,
-                    'w' => $weight,
-                    'c' => $cost,
-                    't' => $tariff_key,
-                    'cod' => $cod,
-                    'dv' => $declared_value
-                ]);
+                    $stmt->execute([
+                        'track' => $track, 'sid' => $sender_id, 'rid' => $recipient_id,
+                        'saddr' => $sender_address, 'addr' => $address, 'w' => $weight,
+                        'c' => $cost, 't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value
+                    ]);
+                } catch (PDOException $e) {
+                    if (strpos($e->getMessage(), 'sender_address') !== false) {
+                        // Если колонки нет — вставляем БЕЗ неё, но выводим предупреждение
+                        $stmt = $pdo->prepare("INSERT INTO parcels
+                            (track_code, sender_id, recipient_id, address, weight, cost, tariff, cod, declared_value)
+                            VALUES (:track, :sid, :rid, :addr, :w, :c, :t, :cod, :dv)");
+                        $stmt->execute([
+                            'track' => $track, 'sid' => $sender_id, 'rid' => $recipient_id,
+                            'addr' => $address, 'w' => $weight, 'c' => $cost,
+                            't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value
+                        ]);
+                        $success_warning = " (Внимание: Адрес отправителя не сохранен, запустите <a href='db_fix.php'>db_fix.php</a>)";
+                    } else {
+                        throw $e;
+                    }
+                }
 
                 $parcel_id = $pdo->lastInsertId();
                 // Убираем created_at, так как колонки может не быть. Время добавим в текст для истории.
@@ -74,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
                 $stmt->execute(['pid' => $parcel_id, 'txt' => $status_text]);
 
-                $success = "Посылка <strong>$track</strong> успешно оформлена!<br>Стоимость: <strong>" . number_format($cost, 2) . " BYN</strong>";
+                $success = "Посылка <strong>$track</strong> успешно оформлена!<br>Стоимость: <strong>" . number_format($cost, 2) . " BYN</strong>" . ($success_warning ?? '');
             }
         } catch (PDOException $e) { $error = $e->getMessage(); }
     }
@@ -149,9 +162,13 @@ include __DIR__ . '/header.php';
                         </div>
                     </div>
 
-                    <div class="col-12">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Адрес отправления</label>
+                        <textarea name="sender_address" class="form-control rounded-3" rows="2" placeholder="Откуда (необязательно)"></textarea>
+                    </div>
+                    <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">Адрес доставки</label>
-                        <textarea name="address" class="form-control rounded-3" rows="2" required placeholder="Полный адрес..."></textarea>
+                        <textarea name="address" class="form-control rounded-3" rows="2" required placeholder="Куда (точно)"></textarea>
                     </div>
 
                     <div class="col-md-6">

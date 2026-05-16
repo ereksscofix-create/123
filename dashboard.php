@@ -194,7 +194,10 @@ include __DIR__ . '/header.php';
                                         </td>
                                         <td>
                                             <div class="small fw-bold text-dark mb-1"><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login']); ?></div>
-                                            <div class="x-small text-muted text-truncate" style="max-width: 150px;"><?php echo e($p['address']); ?></div>
+                                        <div class="x-small text-muted text-truncate" style="max-width: 200px;">
+                                            <span title="Откуда"><i class="bi bi-geo"></i> <?php echo e($p['sender_address'] ?: '...'); ?></span><br>
+                                            <span title="Куда"><i class="bi bi-geo-fill"></i> <?php echo e($p['address']); ?></span>
+                                        </div>
                                         </td>
                                         <td>
                                             <?php
@@ -258,7 +261,8 @@ include __DIR__ . '/header.php';
                                 </div>
                                 <div class="mb-3">
                                     <div class="small fw-bold text-dark mb-1"><i class="bi bi-person me-2 text-muted"></i><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login']); ?></div>
-                                    <div class="small text-muted"><i class="bi bi-geo-alt me-2 text-muted"></i><?php echo e($p['address']); ?></div>
+                                    <div class="small text-muted mb-1"><i class="bi bi-geo me-2 text-muted"></i><?php echo e($p['sender_address'] ?: '...'); ?></div>
+                                    <div class="small text-muted"><i class="bi bi-geo-fill me-2 text-muted"></i><?php echo e($p['address']); ?></div>
                                 </div>
                                 <div class="d-flex gap-2">
                                     <a href="parcel_history.php?id=<?php echo $p['id']; ?>" class="btn btn-light btn-sm flex-grow-1 rounded-pill fw-bold">История</a>

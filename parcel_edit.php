@@ -42,6 +42,7 @@ try {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $sender_address = trim($_POST['sender_address'] ?? '');
     $address = trim($_POST['address'] ?? '');
     $weight = (float)$_POST['weight'];
     $tariff_key = $_POST['tariff'] ?? 'ST';
@@ -53,17 +54,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $declared_value = (float)$_POST['declared_value'];
 
     try {
-        $stmt = $pdo->prepare("UPDATE parcels SET address = :addr, weight = :w, cost = :c, tariff = :t, cod = :cod, declared_value = :dv WHERE id = :id");
-        $stmt->execute([
-            'addr' => $address,
-            'w' => $weight,
-            'c' => $cost,
-            't' => $tariff_key,
-            'cod' => $cod,
-            'dv' => $declared_value,
-            'id' => $id
-        ]);
-        $success = "Данные обновлены! Стоимость: " . number_format($cost, 2) . " BYN";
+        try {
+            $stmt = $pdo->prepare("UPDATE parcels SET sender_address = :saddr, address = :addr, weight = :w, cost = :c, tariff = :t, cod = :cod, declared_value = :dv WHERE id = :id");
+            $stmt->execute([
+                'saddr' => $sender_address, 'addr' => $address, 'w' => $weight,
+                'c' => $cost, 't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'id' => $id
+            ]);
+        } catch (PDOException $e) {
+            if (strpos($e->getMessage(), 'sender_address') !== false) {
+                $stmt = $pdo->prepare("UPDATE parcels SET address = :addr, weight = :w, cost = :c, tariff = :t, cod = :cod, declared_value = :dv WHERE id = :id");
+                $stmt->execute([
+                    'addr' => $address, 'w' => $weight, 'c' => $cost,
+                    't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'id' => $id
+                ]);
+                $success_warning = " (Внимание: Адрес отправителя не изменен, запустите <a href='db_fix.php'>db_fix.php</a>)";
+            } else { throw $e; }
+        }
+        $success = "Данные обновлены! Стоимость: " . number_format($cost, 2) . " BYN" . ($success_warning ?? '');
         $parcel['address'] = $address;
         $parcel['weight'] = $weight;
         $parcel['cost'] = $cost;
@@ -108,7 +115,11 @@ include __DIR__ . '/header.php';
                         <input type="number" name="weight" class="form-control form-control-lg rounded-3" step="0.001" required value="<?php echo e($parcel['weight']); ?>">
                     </div>
 
-                    <div class="col-12">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Адрес отправления</label>
+                        <textarea name="sender_address" class="form-control rounded-3" rows="3"><?php echo e($parcel['sender_address'] ?? ''); ?></textarea>
+                    </div>
+                    <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">Адрес доставки</label>
                         <textarea name="address" class="form-control rounded-3" rows="3" required><?php echo e($parcel['address']); ?></textarea>
                     </div>
