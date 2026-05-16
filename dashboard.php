@@ -1,7 +1,7 @@
 <?php
 /**
  * dashboard.php — УЛЬТИМАТИВНЫЙ РАБОЧИЙ ДАШБОРД EHPST
- * Все посылки видны, все кнопки кликабельны, дизайн премиум-класса.
+ * Оптимизирован под мобильные устройства и десктоп.
  */
 ob_start();
 require_once __DIR__ . '/config.php';
@@ -53,7 +53,7 @@ try {
         $total_revenue = (float)$stmt->fetchColumn();
     }
 
-    // ПОИСК И СПИСОК (Исправлено: теперь точно видит всё)
+    // ПОИСК И СПИСОК
     $params = [];
     $where = [];
 
@@ -103,7 +103,21 @@ try {
 include __DIR__ . '/header.php';
 ?>
 
-<!-- UI: ГЛАВНЫЙ КОНТЕЙНЕР -->
+<style>
+/* Custom Styles for Super Cool Optimization */
+.btn-create { background: #6f42c1; color: #fff; border: none; }
+.btn-create:hover { background: #59359a; color: #fff; }
+.card-parcel { transition: 0.3s; border: 1px solid rgba(0,0,0,0.05); }
+.card-parcel:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important; }
+.mobile-fab { position: fixed; bottom: 20px; right: 20px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(111, 66, 193, 0.4); }
+@media (min-width: 992px) { .mobile-fab { display: none; } }
+</style>
+
+<!-- Floating Action Button for Mobile -->
+<a href="parcel_add.php" class="mobile-fab btn-create d-lg-none">
+    <i class="bi bi-plus-lg fs-3"></i>
+</a>
+
 <div class="row g-4 animate-fade-in">
 
     <!-- 1. ПРИВЕТСТВИЕ И СТАТИСТИКА -->
@@ -112,8 +126,8 @@ include __DIR__ . '/header.php';
             <div class="position-relative z-index-2">
                 <h2 class="fw-bold mb-1">Привет, <?php echo e($name); ?>! 👋</h2>
                 <p class="opacity-75 mb-3">Ваш системный номер: <strong>#<?php echo $user_id; ?></strong></p>
-                <div class="d-flex gap-2">
-                    <a href="parcel_add.php" class="btn btn-white text-primary border-0 fw-bold shadow-sm rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Создать посылку</a>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="parcel_add.php" class="btn btn-create fw-bold shadow-sm rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Создать посылку</a>
                     <?php if($role === 'worker'): ?><a href="parcel_issue.php" class="btn btn-success border-0 fw-bold shadow-sm rounded-pill px-4">Выдача</a><?php endif; ?>
                 </div>
             </div>
@@ -127,7 +141,7 @@ include __DIR__ . '/header.php';
                     <div class="col-md-6">
                         <div class="input-group">
                             <span class="input-group-text bg-light border-0 ps-3 rounded-pill-start"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" name="q" class="form-control border-0 bg-light rounded-pill-end shadow-none" placeholder="Поиск по всем полям..." value="<?php echo e($q); ?>">
+                            <input type="text" name="q" class="form-control border-0 bg-light rounded-pill-end shadow-none" placeholder="Поиск..." value="<?php echo e($q); ?>">
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -138,81 +152,130 @@ include __DIR__ . '/header.php';
                             <option value="delivered" <?php echo $filter === 'delivered' ? 'selected' : ''; ?>>Доставлены</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 d-none d-md-block">
                         <button class="btn btn-primary w-100 rounded-pill fw-bold border-0">Найти</button>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- ТАБЛИЦА (ГЛАВНАЯ ЧАСТЬ) -->
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light">
-                        <tr class="text-muted small text-uppercase">
-                            <th class="ps-4 border-0 py-3">Посылка</th>
-                            <th class="border-0 py-3">Маршрут</th>
-                            <th class="border-0 py-3">Статус</th>
-                            <th class="text-end pe-4 border-0 py-3">Действие</th>
-                        </tr>
-                    </thead>
-                    <tbody class="border-0">
-                        <?php if ($parcels): ?>
-                            <?php foreach ($parcels as $p): ?>
-                                <tr>
-                                    <td class="ps-4">
-                                        <div class="fw-bold text-dark mb-1"><?php echo e($p['track_code']); ?></div>
+        <!-- СПИСОК ПОСЫЛОК -->
+        <div class="mb-4">
+            <!-- Desktop View (Table) -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden d-none d-md-block">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr class="text-muted x-small text-uppercase">
+                                <th class="ps-4 border-0 py-3">Посылка</th>
+                                <th class="border-0 py-3">Маршрут</th>
+                                <th class="border-0 py-3">Статус</th>
+                                <th class="text-end pe-4 border-0 py-3">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody class="border-0">
+                            <?php if ($parcels): ?>
+                                <?php foreach ($parcels as $p): ?>
+                                    <tr>
+                                        <td class="ps-4">
+                                            <div class="fw-bold text-dark mb-1"><?php echo e($p['track_code']); ?></div>
+                                            <div class="x-small text-muted fw-bold"><?php echo e($p['tariff']); ?> · <?php echo number_format($p['weight'], 3); ?> кг</div>
+                                        </td>
+                                        <td>
+                                            <div class="small fw-bold text-dark mb-1"><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login']); ?></div>
+                                            <div class="x-small text-muted text-truncate" style="max-width: 150px;"><?php echo e($p['address']); ?></div>
+                                        </td>
+                                        <td>
+                                            <?php
+                                                $st = $p['last_status'] ?: 'Оформлена';
+                                                $bc = 'bg-primary';
+                                                if (mb_stripos($st, 'ожидает') !== false) $bc = 'bg-warning text-dark';
+                                                if (mb_stripos($st, 'выдана') !== false || mb_stripos($st, 'доставлено') !== false) $bc = 'bg-success text-white';
+                                            ?>
+                                            <span class="badge <?php echo $bc; ?> bg-opacity-10 text-<?php echo strpos($bc, 'white') !== false ? 'success' : str_replace('bg-', '', explode(' ', $bc)[0]); ?> px-3 py-2 fw-bold" style="font-size: 0.7rem;">
+                                                <?php echo e(mb_strtoupper($st)); ?>
+                                            </span>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <div class="dropdown">
+                                                <button class="btn btn-light btn-sm rounded-pill px-3 border shadow-none" type="button" data-bs-toggle="dropdown">
+                                                    <i class="bi bi-three-dots"></i>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2">
+                                                    <li><a class="dropdown-item py-2" href="parcel_history.php?id=<?php echo $p['id']; ?>"><i class="bi bi-clock-history me-2 text-primary"></i>История</a></li>
+                                                    <li><a class="dropdown-item py-2" href="label_print.php?id=<?php echo $p['id']; ?>"><i class="bi bi-printer me-2 text-primary"></i>Печать</a></li>
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li><a class="dropdown-item py-2" href="parcel_edit.php?id=<?php echo $p['id']; ?>"><i class="bi bi-pencil-square me-2 text-warning"></i>Изменить</a></li>
+                                                    <?php if ($role === 'worker'): ?>
+                                                        <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_status.php?id=<?php echo $p['id']; ?>"><i class="bi bi-plus-circle me-2"></i>Новый статус</a></li>
+                                                    <?php endif; ?>
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confDel(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-trash3 me-2"></i>Удалить</a></li>
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr><td colspan="4" class="text-center py-5 text-muted fw-bold">Список посылок пуст</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mobile View (Cards) -->
+            <div class="d-md-none">
+                <?php if ($parcels): ?>
+                    <?php foreach ($parcels as $p): ?>
+                        <div class="card card-parcel border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
+                            <div class="card-body p-4">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <div class="h5 fw-bold text-primary mb-0"><?php echo e($p['track_code']); ?></div>
                                         <div class="x-small text-muted fw-bold"><?php echo e($p['tariff']); ?> · <?php echo number_format($p['weight'], 3); ?> кг</div>
-                                    </td>
-                                    <td>
-                                        <div class="small fw-bold text-dark mb-1"><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login']); ?></div>
-                                        <div class="x-small text-muted text-truncate" style="max-width: 150px;"><?php echo e($p['address']); ?></div>
-                                    </td>
-                                    <td>
-                                        <?php
-                                            $st = $p['last_status'] ?: 'Оформлена';
-                                            $bc = 'bg-primary';
-                                            if (mb_stripos($st, 'ожидает') !== false) $bc = 'bg-warning text-dark';
-                                            if (mb_stripos($st, 'выдана') !== false || mb_stripos($st, 'доставлено') !== false) $bc = 'bg-success';
-                                        ?>
-                                        <span class="badge <?php echo $bc; ?> bg-opacity-10 text-<?php echo str_replace('bg-', '', explode(' ', $bc)[0]); ?> px-3 py-2 fw-bold" style="font-size: 0.7rem;">
-                                            <?php echo e(mb_strtoupper($st)); ?>
-                                        </span>
-                                    </td>
-                                    <td class="text-end pe-4">
-                                        <div class="dropdown">
-                                            <button class="btn btn-light btn-sm rounded-pill px-3 border shadow-none" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                <i class="bi bi-three-dots"></i>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2">
-                                                <li><a class="dropdown-item py-2" href="parcel_history.php?id=<?php echo $p['id']; ?>"><i class="bi bi-clock-history me-2 text-primary"></i>История</a></li>
-                                                <li><a class="dropdown-item py-2" href="label_print.php?id=<?php echo $p['id']; ?>"><i class="bi bi-printer me-2 text-primary"></i>Печать</a></li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item py-2" href="parcel_edit.php?id=<?php echo $p['id']; ?>"><i class="bi bi-pencil-square me-2 text-warning"></i>Изменить</a></li>
-                                                <?php if ($role === 'worker'): ?>
-                                                    <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_status.php?id=<?php echo $p['id']; ?>"><i class="bi bi-plus-circle me-2"></i>Новый статус</a></li>
-                                                <?php endif; ?>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confDel(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-trash3 me-2"></i>Удалить</a></li>
-                                            </ul>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <tr><td colspan="4" class="text-center py-5 text-muted fw-bold">Список посылок пуст</td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+                                    </div>
+                                    <?php
+                                        $st = $p['last_status'] ?: 'Оформлена';
+                                        $bc = 'bg-primary';
+                                        if (mb_stripos($st, 'ожидает') !== false) $bc = 'bg-warning text-dark';
+                                        if (mb_stripos($st, 'выдана') !== false || mb_stripos($st, 'доставлено') !== false) $bc = 'bg-success text-white';
+                                    ?>
+                                    <span class="badge <?php echo $bc; ?> py-2 px-3 rounded-pill fw-bold" style="font-size: 0.65rem;">
+                                        <?php echo e(mb_strtoupper($st)); ?>
+                                    </span>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="small fw-bold text-dark mb-1"><i class="bi bi-person me-2 text-muted"></i><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login']); ?></div>
+                                    <div class="small text-muted"><i class="bi bi-geo-alt me-2 text-muted"></i><?php echo e($p['address']); ?></div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="parcel_history.php?id=<?php echo $p['id']; ?>" class="btn btn-light btn-sm flex-grow-1 rounded-pill fw-bold">История</a>
+                                    <a href="label_print.php?id=<?php echo $p['id']; ?>" class="btn btn-light btn-sm flex-grow-1 rounded-pill fw-bold">Печать</a>
+                                    <div class="dropdown">
+                                        <button class="btn btn-light btn-sm rounded-pill px-3 shadow-none" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2">
+                                            <li><a class="dropdown-item py-2" href="parcel_edit.php?id=<?php echo $p['id']; ?>"><i class="bi bi-pencil-square me-2 text-warning"></i>Изменить</a></li>
+                                            <?php if ($role === 'worker'): ?>
+                                                <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_status.php?id=<?php echo $p['id']; ?>"><i class="bi bi-plus-circle me-2"></i>Статус</a></li>
+                                            <?php endif; ?>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confDel(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-trash3 me-2"></i>Удалить</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="text-center py-5 text-muted fw-bold">Нет посылок</div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 
-    <!-- 2. ПРАВАЯ ПАНЕЛЬ (СТАТИСТИКА И УВЕДОМЛЕНИЯ) -->
+    <!-- 2. ПРАВАЯ ПАНЕЛЬ -->
     <div class="col-lg-4">
-
-        <!-- КАРТОЧКИ СТАТОВ -->
         <div class="card border-0 shadow-sm border-start border-success border-5 rounded-4 mb-4">
             <div class="card-body p-4 d-flex justify-content-between align-items-center">
                 <div>
@@ -223,8 +286,7 @@ include __DIR__ . '/header.php';
             </div>
         </div>
 
-        <!-- УВЕДОМЛЕНИЯ ПРЯМО ЗДЕСЬ -->
-        <div class="card border-0 shadow-sm rounded-4">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
             <div class="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-bold">Уведомления</h5>
                 <?php if($unreadCount > 0): ?><span class="badge bg-danger rounded-pill"><?php echo $unreadCount; ?></span><?php endif; ?>
@@ -248,22 +310,6 @@ include __DIR__ . '/header.php';
                         <div class="p-5 text-center text-muted fw-bold">Уведомлений нет</div>
                     <?php endif; ?>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Notif Modal (на всякий случай оставим кнопку в мобилке) -->
-<div class="modal fade" id="notifModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4">
-            <div class="modal-header border-0 bg-light p-4 rounded-top-4">
-                <h5 class="modal-title fw-bold">Уведомления</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-            </div>
-            <div class="modal-body p-0">
-                <!-- Контент дублируется или загружается динамически, но мы его вывели в правую панель -->
-                <div class="p-4 text-center text-muted">Используйте правую панель дашборда для просмотра уведомлений</div>
             </div>
         </div>
     </div>
