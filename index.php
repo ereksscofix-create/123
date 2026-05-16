@@ -313,7 +313,7 @@ include 'header.php';
 <div class="card bg-white shadow-sm border-0 mb-5 overflow-hidden rounded-4">
     <div class="card-header bg-dark text-white p-3 fw-bold">📤 Выставленные мной счета (<?php echo count($sent_invoices); ?>)</div>
     <div class="table-responsive"><table class="table table-hover align-middle mb-0">
-        <thead class="table-light small"><tr><th>№</th><th>ЗАКАЗЧИК</th><th>СОДЕРЖАНИЕ</th><th>ИСХОДНАЯ</th><th>СКИДКА</th><th>К ОПЛАТЕ</th><th>СТАТУС</th><th>ДЕЙСТВИЯ</th></tr></thead>
+        <thead class="table-light small"><tr><th>№</th><th>ЗАКАЗЧИК</th><th>СОДЕРЖАНИЕ</th><th>ИСХОДНАЯ</th><th>СКИДКА</th><th>К ОПЛАТЕ</th><th>СРОК</th><th>СТАТУС</th><th>ДЕЙСТВИЯ</th></tr></thead>
         <tbody>
             <?php foreach($sent_invoices as $i):
                 $original = floatval($i['amount']);
@@ -335,6 +335,17 @@ include 'header.php';
                     <?php endif; ?>
                 </td>
                 <td><b><?php echo number_format($final, 2); ?> BYN</b></td>
+                <td>
+                    <?php if(!empty($i['due_date'])):
+                        $is_overdue = (strtotime($i['due_date']) < strtotime($today)) && ($i['status'] != 'Оплачен');
+                    ?>
+                        <span class="<?php echo $is_overdue ? 'text-danger fw-bold' : 'text-muted'; ?>">
+                            <?php echo date('d.m.Y', strtotime($i['due_date'])); ?>
+                        </span>
+                    <?php else: ?>
+                        <span class="text-muted">—</span>
+                    <?php endif; ?>
+                </td>
                 <td>
                     <form action="update_status.php" method="POST" class="d-inline">
                         <input type="hidden" name="id" value="<?php echo intval($i['id']); ?>">
@@ -361,7 +372,7 @@ include 'header.php';
 <div class="card bg-white shadow-sm border-0 mb-5 overflow-hidden rounded-4">
     <div class="card-header bg-primary text-white p-3 fw-bold">📥 Мои полученные счета (<?php echo count($received_invoices); ?>)</div>
     <div class="table-responsive"><table class="table table-hover align-middle mb-0">
-        <thead class="table-light small"><tr><th>№</th><th>ИСПОЛНИТЕЛЬ</th><th>СОДЕРЖАНИЕ</th><th>ИСХОДНАЯ</th><th>СКИДКА / БОНУСЫ</th><th>К ОПЛАТЕ</th><th>ДЕЙСТВИЕ</th><th>ПЕЧАТЬ</th></tr></thead>
+        <thead class="table-light small"><tr><th>№</th><th>ИСПОЛНИТЕЛЬ</th><th>СОДЕРЖАНИЕ</th><th>ИСХОДНАЯ</th><th>СКИДКА / БОНУСЫ</th><th>К ОПЛАТЕ</th><th>СРОК</th><th>ДЕЙСТВИЕ</th><th>ПЕЧАТЬ</th></tr></thead>
         <tbody>
             <?php foreach($received_invoices as $i):
                 $original = floatval($i['amount']);
@@ -390,6 +401,17 @@ include 'header.php';
                     </div>
                 </td>
                 <td><b class="text-primary fs-5"><?php echo number_format($final, 2); ?> BYN</b></td>
+                <td>
+                    <?php if(!empty($i['due_date'])):
+                        $is_overdue = (strtotime($i['due_date']) < strtotime($today)) && ($i['status'] != 'Оплачен');
+                    ?>
+                        <span class="<?php echo $is_overdue ? 'text-danger fw-bold' : 'text-muted'; ?>">
+                            <?php echo date('d.m.Y', strtotime($i['due_date'])); ?>
+                        </span>
+                    <?php else: ?>
+                        <span class="text-muted">—</span>
+                    <?php endif; ?>
+                </td>
                 <td>
                     <div class="mb-2">
                         <?php if($i['status'] != 'Оплачен' && empty($i['pending_status'])): ?>
