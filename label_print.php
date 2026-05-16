@@ -6,9 +6,12 @@ checkLogin();
 
 if (!isset($_GET['id'])) die("Посылка не выбрана");
 $parcel_id = (int)$_GET['id'];
+$is_return = isset($_GET['return']) && $_GET['return'] == 1;
 
 try {
-    $stmt = $pdo->prepare("SELECT p.*, s.name AS sender_name, r.name AS recipient_name
+    $stmt = $pdo->prepare("SELECT p.*,
+                           s.name AS sender_name, s.login AS sender_login,
+                           r.name AS recipient_name, r.login AS recipient_login
                            FROM parcels p
                            LEFT JOIN users s ON p.sender_id = s.id
                            LEFT JOIN users r ON p.recipient_id = r.id
@@ -69,14 +72,19 @@ try {
 </style>
 </head>
 <body>
-<div class="no-print" style="margin-bottom:30px;display:flex;gap:15px">
-  <button class="btn" onclick="window.print()">ПЕЧАТЬ ЯРЛЫКА</button>
+<div class="no-print" style="margin-bottom:30px;display:flex;gap:15px;flex-wrap:wrap">
+  <button class="btn" onclick="window.print()"><i class="bi bi-printer"></i> ПЕЧАТЬ</button>
+  <?php if ($is_return): ?>
+    <a href="label_print.php?id=<?php echo $parcel_id; ?>" class="btn" style="background:var(--primary)"><i class="bi bi-arrow-left-right"></i> ОБЫЧНЫЙ ЯРЛЫК</a>
+  <?php else: ?>
+    <a href="label_print.php?id=<?php echo $parcel_id; ?>&return=1" class="btn" style="background:#f59e0b"><i class="bi bi-arrow-return-left"></i> ВОЗВРАТНЫЙ ЯРЛЫК</a>
+  <?php endif; ?>
   <a href="dashboard.php" class="btn" style="background:#6b7280">ВЕРНУТЬСЯ</a>
 </div>
 
 <div class="label">
   <div class="hdr">
-    <div class="brand">EHPST</div>
+    <div class="brand">EHPST <?php echo $is_return ? '<span style="color:#dc2626;font-size:14px;vertical-align:middle">(ВОЗВРАТ)</span>' : ''; ?></div>
     <div class="date"><?php echo date('d.m.Y'); ?><br><?php echo date('H:i'); ?></div>
   </div>
 
@@ -91,8 +99,20 @@ try {
 
   <div class="section">
     <table class="info-table">
-        <tr><td class="bold" style="width:110px">ОТПРАВИТЕЛЬ:</td><td><?php echo htmlspecialchars($parcel['sender_name'] ?: 'ID '.$parcel['sender_id']); ?></td></tr>
-        <tr><td class="bold">ПОЛУЧАТЕЛЬ:</td><td><?php echo htmlspecialchars($parcel['recipient_name'] ?: 'ID '.$parcel['recipient_id']); ?></td></tr>
+        <?php
+            $s_display = htmlspecialchars($parcel['sender_name'] ?: $parcel['sender_login'] ?: 'ID '.$parcel['sender_id']);
+            $r_display = htmlspecialchars($parcel['recipient_name'] ?: $parcel['recipient_login'] ?: 'ID '.$parcel['recipient_id']);
+
+            if ($is_return) {
+                $from = $r_display;
+                $to = $s_display;
+            } else {
+                $from = $s_display;
+                $to = $r_display;
+            }
+        ?>
+        <tr><td class="bold" style="width:110px">ОТПРАВИТЕЛЬ:</td><td><?php echo $from; ?></td></tr>
+        <tr><td class="bold">ПОЛУЧАТЕЛЬ:</td><td><?php echo $to; ?></td></tr>
         <tr><td class="bold">АДРЕС:</td><td style="line-height:1.3"><?php echo nl2br(htmlspecialchars($parcel['address'])); ?></td></tr>
     </table>
   </div>
@@ -102,6 +122,7 @@ try {
         <div>ВЕС: <span class="bold"><?php echo number_format($parcel['weight'], 3); ?> КГ</span></div>
         <div>ТАРИФ: <span class="bold"><?php echo htmlspecialchars($parcel['tariff']); ?></span></div>
         <div>СУММА: <span class="bold"><?php echo number_format($parcel['cost'], 2); ?> BYN</span></div>
+        <div>ЦЕННОСТЬ: <span class="bold"><?php echo number_format($parcel['declared_value'], 2); ?> BYN</span></div>
         <div>НАЛ.ПЛ: <span class="bold"><?php echo ($parcel['cod'] > 0) ? number_format($parcel['cod'], 2).' BYN' : 'НЕТ'; ?></span></div>
     </div>
   </div>
