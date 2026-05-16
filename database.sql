@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS `parcels` (
   `is_paid` tinyint(1) DEFAULT '0',
   `pay_on_delivery` tinyint(1) DEFAULT '0',
   `is_cod_paid` tinyint(1) DEFAULT '0',
+  `is_refunded` tinyint(1) DEFAULT '0',
   `payment_method` varchar(20) DEFAULT NULL,
   `receipt_no` varchar(50) DEFAULT NULL,
   `is_return` tinyint(1) DEFAULT '0',

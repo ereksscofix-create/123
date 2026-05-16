@@ -61,7 +61,8 @@ try {
         'sender_address' => "TEXT DEFAULT NULL AFTER recipient_id",
         'is_paid' => "TINYINT(1) DEFAULT 0 AFTER declared_value",
         'is_cod_paid' => "TINYINT(1) DEFAULT 0 AFTER is_paid",
-        'pay_on_delivery' => "TINYINT(1) DEFAULT 0 AFTER is_cod_paid",
+        'is_refunded' => "TINYINT(1) DEFAULT 0 AFTER is_cod_paid",
+        'pay_on_delivery' => "TINYINT(1) DEFAULT 0 AFTER is_refunded",
         'payment_method' => "VARCHAR(20) DEFAULT NULL AFTER pay_on_delivery",
         'receipt_no' => "VARCHAR(50) DEFAULT NULL AFTER payment_method",
         'is_return' => "TINYINT(1) DEFAULT 0 AFTER receipt_no"

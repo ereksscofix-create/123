@@ -219,6 +219,9 @@ include __DIR__ . '/header.php';
                                             <?php if ($p['cod'] > 0): ?>
                                                 <span class="badge <?php echo $p['is_cod_paid'] ? 'bg-success' : 'bg-warning'; ?> bg-opacity-10 text-<?php echo $p['is_cod_paid'] ? 'success' : 'dark'; ?> x-small fw-bold ms-1">НАЛ.ПЛ: <?php echo $p['is_cod_paid'] ? 'ОК' : 'ЖДЕТ'; ?></span>
                                             <?php endif; ?>
+                                            <?php if ($p['is_refunded']): ?>
+                                                <span class="badge bg-danger bg-opacity-10 text-danger x-small fw-bold ms-1">ВОЗВРАТ СРЕДСТВ</span>
+                                            <?php endif; ?>
                                         </div>
                                             <?php
                                                 $st = $p['last_status'] ?: 'Оформлена';
@@ -246,6 +249,9 @@ include __DIR__ . '/header.php';
 
                                                 <?php if ($role === 'worker' && $p['cod'] > 0 && !$p['is_cod_paid']): ?>
                                                     <li><a class="dropdown-item py-2 fw-bold text-primary" href="parcel_pay_cod.php?id=<?php echo $p['id']; ?>"><i class="bi bi-wallet2 me-2"></i>ПРИНЯТЬ НАЛ.ПЛ.</a></li>
+                                                <?php endif; ?>
+                                                <?php if ($role === 'worker' && $p['is_paid'] && !$p['is_refunded']): ?>
+                                                    <li><a class="dropdown-item py-2 text-danger" href="parcel_refund.php?id=<?php echo $p['id']; ?>"><i class="bi bi-arrow-counterclockwise me-2"></i>ВОЗВРАТ ДЕНЕГ</a></li>
                                                 <?php endif; ?>
                                                     <li><hr class="dropdown-divider"></li>
                                                     <li><a class="dropdown-item py-2" href="parcel_edit.php?id=<?php echo $p['id']; ?>"><i class="bi bi-pencil-square me-2 text-warning"></i>Изменить</a></li>
@@ -305,6 +311,9 @@ include __DIR__ . '/header.php';
                                     <?php endif; ?>
                                     <?php if ($p['cod'] > 0): ?>
                                         <span class="badge <?php echo $p['is_cod_paid'] ? 'bg-success' : 'bg-warning'; ?> bg-opacity-10 text-<?php echo $p['is_cod_paid'] ? 'success' : 'dark'; ?> x-small fw-bold ms-1">НАЛ.ПЛ: <?php echo $p['is_cod_paid'] ? 'ОК' : 'ЖДЕТ'; ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($p['is_refunded']): ?>
+                                        <span class="badge bg-danger bg-opacity-10 text-danger x-small fw-bold ms-1">ВОЗВРАТ СРЕДСТВ</span>
                                     <?php endif; ?>
                                 </div>
                                 <div class="mb-3">

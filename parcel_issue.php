@@ -58,12 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($can_issue) {
                 if (!$parcel['is_paid']) {
-                    $error = "Посылка не оплачена! Перейдите к оплате: <a href='parcel_pay.php?id={$parcel['id']}'>ОПЛАТИТЬ УСЛУГИ</a>";
+                    $error = "<div class='p-3 bg-danger text-white rounded-3'>🚨 ВНИМАНИЕ: Посылка НЕ ОПЛАЧЕНА! Выдача категорически запрещена.<br><a href='parcel_pay.php?id={$parcel['id']}' class='btn btn-light btn-sm mt-2 fw-bold'>ОПЛАТИТЬ УСЛУГИ СВЯЗИ</a></div>";
                     $can_issue = false;
                 }
 
                 if ($can_issue && $parcel['cod'] > 0 && !$parcel['is_cod_paid']) {
-                    $error = "Ожидается оплата наложенного платежа! <a href='parcel_pay_cod.php?id={$parcel['id']}'>ОПЛАТИТЬ НАЛОЖЕННЫЙ ПЛАТЕЖ (" . number_format($parcel['cod'], 2) . " BYN)</a>";
+                    $error = "<div class='p-3 bg-danger text-white rounded-3'>🚨 ВНИМАНИЕ: Ожидается оплата НАЛОЖЕННОГО ПЛАТЕЖА!<br><a href='parcel_pay_cod.php?id={$parcel['id']}' class='btn btn-light btn-sm mt-2 fw-bold'>ОПЛАТИТЬ НАЛ.ПЛАТЕЖ (" . number_format($parcel['cod'], 2) . " BYN)</a></div>";
                     $can_issue = false;
                 }
             }
