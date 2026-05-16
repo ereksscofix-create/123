@@ -17,11 +17,20 @@ try {
     $parcel = $stmt->fetch();
     if (!$parcel) die("Посылка не найдена");
 
-    // ВСЕГДА генерируем новый секретный код при каждой печати ярлыка (согласно запросу)
-    $secret_code = rand(100000, 999999);
-    $code = rand(1000, 9999);
-    $stmt = $pdo->prepare("INSERT INTO parcel_codes (parcel_id, code, secret_code, code_date) VALUES (:pid, :code, :secret, DATE(NOW()))");
-    $stmt->execute(['pid' => $parcel_id, 'code' => $code, 'secret' => $secret_code]);
+    // Проверяем, есть ли уже код для этой посылки (любая дата, или можно ограничить)
+    $stmt = $pdo->prepare("SELECT secret_code FROM parcel_codes WHERE parcel_id = :pid ORDER BY id DESC LIMIT 1");
+    $stmt->execute(['pid' => $parcel_id]);
+    $existing = $stmt->fetch();
+
+    if ($existing) {
+        $secret_code = $existing['secret_code'];
+    } else {
+        // Генерируем ОДИН раз
+        $secret_code = rand(100000, 999999);
+        $code = rand(1000, 9999);
+        $stmt = $pdo->prepare("INSERT INTO parcel_codes (parcel_id, code, secret_code, code_date) VALUES (:pid, :code, :secret, DATE(NOW()))");
+        $stmt->execute(['pid' => $parcel_id, 'code' => $code, 'secret' => $secret_code]);
+    }
 
 } catch (PDOException $e) {
     if (strpos($e->getMessage(), '1062') !== false) {
