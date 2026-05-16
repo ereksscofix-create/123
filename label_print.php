@@ -17,21 +17,18 @@ try {
     $parcel = $stmt->fetch();
     if (!$parcel) die("Посылка не найдена");
 
-    // Генерируем секретный код для ярлыка (если его еще нет на сегодня)
-    $stmt = $pdo->prepare("SELECT secret_code FROM parcel_codes WHERE parcel_id = :pid AND code_date = DATE(NOW()) LIMIT 1");
-    $stmt->execute(['pid' => $parcel_id]);
-    $existing = $stmt->fetch();
-
-    if ($existing) {
-        $secret_code = $existing['secret_code'];
-    } else {
-        $secret_code = rand(100000, 999999);
-        $code = rand(1000, 9999);
-        $stmt = $pdo->prepare("INSERT INTO parcel_codes (parcel_id, code, secret_code, code_date) VALUES (:pid, :code, :secret, DATE(NOW()))");
-        $stmt->execute(['pid' => $parcel_id, 'code' => $code, 'secret' => $secret_code]);
-    }
+    // ВСЕГДА генерируем новый секретный код при каждой печати ярлыка (согласно запросу)
+    $secret_code = rand(100000, 999999);
+    $code = rand(1000, 9999);
+    $stmt = $pdo->prepare("INSERT INTO parcel_codes (parcel_id, code, secret_code, code_date) VALUES (:pid, :code, :secret, DATE(NOW()))");
+    $stmt->execute(['pid' => $parcel_id, 'code' => $code, 'secret' => $secret_code]);
 
 } catch (PDOException $e) {
+    if (strpos($e->getMessage(), '1062') !== false) {
+        die("<h3>Ошибка: База данных настроена неверно.</h3>
+             <p>Пожалуйста, запустите скрипт исправления: <a href='db_fix.php'><b>ИСПРАВИТЬ БД</b></a></p>
+             <p>Техническая инфо: " . htmlspecialchars($e->getMessage()) . "</p>");
+    }
     die("Ошибка БД: " . htmlspecialchars($e->getMessage()));
 }
 ?>
@@ -56,7 +53,8 @@ try {
   .secret-value{font-family:'Courier New',monospace;font-size:32px;font-weight:900;letter-spacing:5px}
   .info-table{width:100%;font-size:13px;border-collapse:collapse}
   .info-table td{padding:4px 0;vertical-align:top}
-  .sig{display:flex;justify-content:space-between;align-items:center;margin-top:25px;border-top:1px solid #000;padding-top:10px}
+  .sig{display:flex;justify-content:space-between;align-items:flex-end;margin-top:25px;border-top:1px solid #000;padding-top:10px}
+  .stamp-place{width:80px;height:80px;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;font-size:8px;color:#999;text-align:center;border-radius:50%}
   @media print{ .no-print{display:none} body{padding:0} .label{margin-top:0;border:2px solid #000} }
   .btn{padding:12px 24px;cursor:pointer;background:#4361ee;color:#fff;border:none;border-radius:10px;font-weight:700;text-decoration:none;box-shadow:0 4px 10px rgba(67,97,238,0.3)}
 </style>
@@ -106,8 +104,11 @@ try {
   </div>
 
   <div class="sig">
-    <div style="font-size:10px;font-weight:bold">ПОДПИСЬ ОТПРАВИТЕЛЯ:</div>
-    <div style="width:120px;border-bottom:1px solid #000;height:20px"></div>
+    <div>
+      <div style="font-size:10px;font-weight:bold;margin-bottom:15px">ПОДПИСЬ ОТПРАВИТЕЛЯ:</div>
+      <div style="width:120px;border-bottom:1px solid #000;height:1px"></div>
+    </div>
+    <div class="stamp-place">МЕСТО ДЛЯ<br>ПЕЧАТИ</div>
   </div>
 </div>
 

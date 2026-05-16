@@ -94,7 +94,10 @@ include __DIR__ . '/header.php';
                                 <div class="timeline-marker-v2 <?php echo $idx === 0 ? 'bg-primary' : 'bg-light border border-primary border-opacity-50'; ?>"></div>
                                 <div class="timeline-content-v2">
                                     <div class="d-flex flex-wrap justify-content-between align-items-start mb-2">
-                                        <h6 class="fw-bold text-dark mb-1 pe-3"><?php echo e($st['status_text']); ?></h6>
+                                        <?php
+                                            $clean_status = preg_replace('/\[\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2}\]/', '', $st['status_text']);
+                                        ?>
+                                        <h6 class="fw-bold text-dark mb-1 pe-3"><?php echo e(trim($clean_status)); ?></h6>
                                         <div class="badge <?php echo $idx === 0 ? 'bg-primary' : 'bg-light text-muted border'; ?> rounded-pill py-2 px-3 fw-bold shadow-sm">
                                             <i class="bi bi-calendar3 me-2"></i>
                                             <?php

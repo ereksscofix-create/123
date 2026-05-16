@@ -69,8 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
 
                 $parcel_id = $pdo->lastInsertId();
-                $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text, created_at) VALUES (:pid, 'Оформлена', NOW())");
-                $stmt->execute(['pid' => $parcel_id]);
+                // Убираем created_at, так как колонки может не быть. Время добавим в текст для истории.
+                $status_text = "Оформлена [" . date('d.m.Y H:i') . "]";
+                $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
+                $stmt->execute(['pid' => $parcel_id, 'txt' => $status_text]);
 
                 $success = "Посылка <strong>$track</strong> успешно оформлена!<br>Стоимость: <strong>" . number_format($cost, 2) . " BYN</strong>";
             }

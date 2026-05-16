@@ -81,7 +81,12 @@ CREATE TABLE IF NOT EXISTS `parcel_codes` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `parcel_id` (`parcel_id`),
+  -- Убрана уникальность для parcel_id, чтобы можно было генерировать несколько кодов для одной посылки
   CONSTRAINT `parcel_codes_ibfk_1` FOREIGN KEY (`parcel_id`) REFERENCES `parcels` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Если у вас уже есть таблица и возникает ошибка Duplicate entry, выполните:
+-- ALTER TABLE parcel_codes DROP INDEX parcel_id;
+-- ALTER TABLE parcel_codes ADD INDEX parcel_id (parcel_id);
 
 SET FOREIGN_KEY_CHECKS = 1;

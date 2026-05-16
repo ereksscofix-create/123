@@ -42,16 +42,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $full_status_text .= " (Оператор: " . $worker_name . ")";
 
-            // Резольвер для created_at (на случай если колонки нет в БД)
-            try {
-                $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text, created_at) VALUES (:pid, :txt, NOW())");
-                $stmt->execute(['pid' => $id, 'txt' => $full_status_text]);
-            } catch (PDOException $e) {
-                // Если колонки created_at нет — пишем без неё (БД сама может ставить default или мы зашьем время в текст)
-                $full_status_text .= " [" . date('d.m.Y H:i') . "]";
-                $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
-                $stmt->execute(['pid' => $id, 'txt' => $full_status_text]);
-            }
+            // Резольвер для created_at: Всегда добавляем время в текст статуса для надежности,
+            // но INSERT делаем без колонки created_at, чтобы избежать ошибок схемы.
+            $full_status_text .= " [" . date('d.m.Y H:i') . "]";
+
+            $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
+            $stmt->execute(['pid' => $id, 'txt' => $full_status_text]);
 
             // Формируем сообщение для уведомления
             $date_str = date('d.m.Y H:i');
