@@ -48,12 +48,13 @@ try {
         $total_parcels = (int)$pdo->query("SELECT COUNT(*) FROM parcels")->fetchColumn();
         $total_revenue = (float)$pdo->query("SELECT IFNULL(SUM(cost),0) FROM parcels")->fetchColumn();
     } else {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM parcels WHERE sender_id = :uid OR recipient_id = :uid");
-        $stmt->execute(['uid' => $user_id]);
+        // Статистика: Используем уникальные плейсхолдеры для надежности
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM parcels WHERE sender_id = :sid_stats OR recipient_id = :rid_stats");
+        $stmt->execute(['sid_stats' => $user_id, 'rid_stats' => $user_id]);
         $total_parcels = (int)$stmt->fetchColumn();
 
-        $stmt = $pdo->prepare("SELECT IFNULL(SUM(cost),0) FROM parcels WHERE sender_id = :uid");
-        $stmt->execute(['uid' => $user_id]);
+        $stmt = $pdo->prepare("SELECT IFNULL(SUM(cost),0) FROM parcels WHERE sender_id = :sid_rev");
+        $stmt->execute(['sid_rev' => $user_id]);
         $total_revenue = (float)$stmt->fetchColumn();
     }
 
@@ -62,8 +63,10 @@ try {
     $where = [];
 
     if ($role !== 'worker') {
-        $where[] = "(p.sender_id = :uid OR p.recipient_id = :uid)";
-        $params['uid'] = $user_id;
+        // ВАЖНО: Используем разные имена для плейсхолдеров, чтобы избежать конфликтов в некоторых версиях PDO
+        $where[] = "(p.sender_id = :uid_sender OR p.recipient_id = :uid_recipient)";
+        $params['uid_sender'] = $user_id;
+        $params['uid_recipient'] = $user_id;
     }
 
     if ($filter === 'in_transit') {
