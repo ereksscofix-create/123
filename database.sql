@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS `parcels` (
   `cod` decimal(10,2) DEFAULT '0.00',
   `declared_value` decimal(10,2) DEFAULT '0.00',
   `is_paid` tinyint(1) DEFAULT '0',
+  `payment_method` varchar(20) DEFAULT NULL,
+  `receipt_no` varchar(50) DEFAULT NULL,
   `is_return` tinyint(1) DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

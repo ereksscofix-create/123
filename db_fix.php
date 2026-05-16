@@ -60,7 +60,9 @@ try {
     $to_add = [
         'sender_address' => "TEXT DEFAULT NULL AFTER recipient_id",
         'is_paid' => "TINYINT(1) DEFAULT 0 AFTER declared_value",
-        'is_return' => "TINYINT(1) DEFAULT 0 AFTER is_paid"
+        'payment_method' => "VARCHAR(20) DEFAULT NULL AFTER is_paid",
+        'receipt_no' => "VARCHAR(50) DEFAULT NULL AFTER payment_method",
+        'is_return' => "TINYINT(1) DEFAULT 0 AFTER receipt_no"
     ];
 
     foreach($to_add as $col => $def) {
