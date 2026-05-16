@@ -231,7 +231,9 @@ include __DIR__ . '/header.php';
                                                 <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2">
                                                     <li><a class="dropdown-item py-2" href="parcel_history.php?id=<?php echo $p['id']; ?>"><i class="bi bi-clock-history me-2 text-primary"></i>История</a></li>
                                                     <li><a class="dropdown-item py-2" href="label_print.php?id=<?php echo $p['id']; ?>"><i class="bi bi-printer me-2 text-primary"></i>Печать</a></li>
-                                                <?php if ($role === 'worker' && !$p['is_paid']): ?>
+                                                <?php if ($p['is_paid']): ?>
+                                                    <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_receipt.php?id=<?php echo $p['id']; ?>"><i class="bi bi-receipt me-2"></i>ЧЕК ОБ ОПЛАТЕ</a></li>
+                                                <?php elseif ($role === 'worker'): ?>
                                                     <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_pay.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash-coin me-2"></i>ОПЛАТИТЬ</a></li>
                                                 <?php endif; ?>
                                                     <li><hr class="dropdown-divider"></li>
@@ -290,9 +292,16 @@ include __DIR__ . '/header.php';
                                     <div class="small text-muted mb-1"><i class="bi bi-geo me-2 text-muted"></i><?php echo e($p['sender_address'] ?: '...'); ?></div>
                                     <div class="small text-muted"><i class="bi bi-geo-fill me-2 text-muted"></i><?php echo e($p['address']); ?></div>
                                 </div>
-                                <div class="d-flex gap-2">
+                                <div class="d-flex gap-2 mb-2">
                                     <a href="parcel_history.php?id=<?php echo $p['id']; ?>" class="btn btn-light btn-sm flex-grow-1 rounded-pill fw-bold">История</a>
                                     <a href="label_print.php?id=<?php echo $p['id']; ?>" class="btn btn-light btn-sm flex-grow-1 rounded-pill fw-bold">Печать</a>
+                                </div>
+                                <?php if ($p['is_paid']): ?>
+                                    <a href="parcel_receipt.php?id=<?php echo $p['id']; ?>" class="btn btn-outline-success btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-receipt me-1"></i>ПОСМОТРЕТЬ ЧЕК</a>
+                                <?php elseif ($role === 'worker'): ?>
+                                    <a href="parcel_pay.php?id=<?php echo $p['id']; ?>" class="btn btn-success btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-cash-coin me-1"></i>ОПЛАТИТЬ</a>
+                                <?php endif; ?>
+                                <div class="d-flex gap-2">
                                     <div class="dropdown">
                                         <button class="btn btn-light btn-sm rounded-pill px-3 shadow-none" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2">
