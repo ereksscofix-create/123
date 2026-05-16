@@ -26,8 +26,6 @@ $rates = [
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tariff_key = $_POST['tariff'] ?? 'ST';
-
-    // Генерация трек-кода
     $track = $tariff_key . str_pad(rand(0, 999999999), 9, '0', STR_PAD_LEFT) . 'BY';
 
     $sender_id = (int)($_POST['sender_id'] ?? 0);
@@ -36,13 +34,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pickup_point = $_POST['pickup_point'] ?? '';
     $address = ($pickup_point !== '') ? $pickup_point : trim($_POST['address'] ?? '');
     $weight = (float)($_POST['weight'] ?? 0);
-
-    $multiplier = $rates[$tariff_key]['rate'] ?? 10;
-    $cost = $weight * $multiplier;
-
     $cod = (float)($_POST['cod'] ?? 0);
     $declared_value = (float)($_POST['declared_value'] ?? 0);
+    $inventory = trim($_POST['inventory'] ?? '');
     $pay_on_delivery = isset($_POST['pay_on_delivery']) ? 1 : 0;
+
+    // Расчет стоимости с комиссиями
+    $multiplier = $rates[$tariff_key]['rate'] ?? 10;
+    $base_cost = $weight * $multiplier;
+    $cod_fee = $cod * 0.015; // 1.5%
+    $dv_fee = $declared_value * 0.017; // 1.7%
+    $inv_fee = ($inventory !== '') ? $base_cost * 0.02 : 0; // Опись 2% от тарифа
+    $cost = $base_cost + $cod_fee + $dv_fee + $inv_fee;
 
     if ($sender_id <= 0 || $recipient_id <= 0 || empty($address)) {
         $error = "Пожалуйста, заполните все обязательные поля.";
@@ -55,36 +58,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!in_array($sender_id, $found_ids) || !in_array($recipient_id, $found_ids)) {
                 $error = "Один или оба ID пользователей не найдены.";
             } else {
-                // Попытка вставить с адресом отправителя и оплатой при получении
+                // Попытка вставить со всеми новыми полями
                 try {
                     $stmt = $pdo->prepare("INSERT INTO parcels
-                        (track_code, sender_id, recipient_id, sender_address, address, pickup_point, weight, cost, tariff, cod, declared_value, pay_on_delivery)
-                        VALUES (:track, :sid, :rid, :saddr, :addr, :pvz, :w, :c, :t, :cod, :dv, :pod)");
+                        (track_code, sender_id, recipient_id, sender_address, address, pickup_point, weight, cost, tariff, cod, declared_value, inventory, pay_on_delivery)
+                        VALUES (:track, :sid, :rid, :saddr, :addr, :pvz, :w, :c, :t, :cod, :dv, :inv, :pod)");
 
                     $stmt->execute([
                         'track' => $track, 'sid' => $sender_id, 'rid' => $recipient_id,
                         'saddr' => $sender_address, 'addr' => $address, 'pvz' => $pickup_point, 'w' => $weight,
-                        'c' => $cost, 't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'pod' => $pay_on_delivery
+                        'c' => $cost, 't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'inv' => $inventory, 'pod' => $pay_on_delivery
                     ]);
                 } catch (PDOException $e) {
-                    if (strpos($e->getMessage(), 'sender_address') !== false || strpos($e->getMessage(), 'pay_on_delivery') !== false) {
-                        // Если колонок нет — вставляем БЕЗ них, но выводим предупреждение
-                        $stmt = $pdo->prepare("INSERT INTO parcels
-                            (track_code, sender_id, recipient_id, address, weight, cost, tariff, cod, declared_value)
-                            VALUES (:track, :sid, :rid, :addr, :w, :c, :t, :cod, :dv)");
-                        $stmt->execute([
-                            'track' => $track, 'sid' => $sender_id, 'rid' => $recipient_id,
-                            'addr' => $address, 'w' => $weight, 'c' => $cost,
-                            't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value
-                        ]);
-                        $success_warning = " (Внимание: Адрес отправителя не сохранен, запустите <a href='db_fix.php'>db_fix.php</a>)";
-                    } else {
-                        throw $e;
-                    }
+                    // Режим совместимости (если колонки еще не добавлены)
+                    $stmt = $pdo->prepare("INSERT INTO parcels
+                        (track_code, sender_id, recipient_id, address, weight, cost, tariff, cod, declared_value)
+                        VALUES (:track, :sid, :rid, :addr, :w, :c, :t, :cod, :dv)");
+                    $stmt->execute([
+                        'track' => $track, 'sid' => $sender_id, 'rid' => $recipient_id,
+                        'addr' => $address, 'w' => $weight, 'c' => $cost,
+                        't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value
+                    ]);
+                    $success_warning = " (Внимание: Новые поля не сохранены, запустите <a href='db_fix.php'>db_fix.php</a>)";
                 }
 
                 $parcel_id = $pdo->lastInsertId();
-                // Убираем created_at, так как колонки может не быть. Время добавим в текст для истории.
                 $status_text = "Оформлена [" . date('d.m.Y H:i') . "]";
                 $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
                 $stmt->execute(['pid' => $parcel_id, 'txt' => $status_text]);
@@ -158,9 +156,21 @@ include __DIR__ . '/header.php';
                     </div>
 
                     <div class="col-12">
-                        <div class="p-4 rounded-4 text-center bg-light border border-2 border-dashed border-primary">
-                            <div class="text-muted small fw-bold text-uppercase mb-1">Итоговая стоимость</div>
-                            <div class="h2 mb-0 text-primary fw-extrabold"><span id="totalCost">0.00</span> <span class="fs-5">BYN</span></div>
+                        <div class="p-4 rounded-4 bg-light border border-2 border-dashed border-primary">
+                            <div class="row text-center">
+                                <div class="col-4 border-end">
+                                    <div class="x-small text-muted text-uppercase">Тариф</div>
+                                    <div class="fw-bold"><span id="baseCost">0.00</span></div>
+                                </div>
+                                <div class="col-4 border-end">
+                                    <div class="x-small text-muted text-uppercase">Сборы (Всего)</div>
+                                    <div class="fw-bold"><span id="feesCost">0.00</span></div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="x-small text-muted text-uppercase fw-bold">Итого</div>
+                                    <div class="h4 mb-0 text-primary fw-extrabold"><span id="totalCost">0.00</span></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -181,12 +191,18 @@ include __DIR__ . '/header.php';
                     </div>
 
                     <div class="col-md-6">
-                        <label class="form-label fw-bold text-muted small text-uppercase">Наложенный платеж</label>
-                        <input type="number" name="cod" class="form-control rounded-3" step="0.01" value="0.00">
-                    </div>
-                    <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">Объявл. ценность</label>
-                        <input type="number" name="declared_value" class="form-control rounded-3" step="0.01" value="0.00">
+                        <input type="number" name="declared_value" id="dvInput" class="form-control rounded-3" step="0.01" value="0.00">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Наложенный платеж</label>
+                        <input type="number" name="cod" id="codInput" class="form-control rounded-3" step="0.01" value="0.00">
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Опись вложения</label>
+                        <textarea name="inventory" class="form-control rounded-3" rows="3" placeholder="Список товаров и их количество..." oninput="calculate()"></textarea>
                     </div>
 
                     <div class="col-12">
@@ -212,15 +228,31 @@ include __DIR__ . '/header.php';
 document.addEventListener('DOMContentLoaded', function() {
     const tariffSelect = document.getElementById('tariffSelect');
     const weightInput = document.getElementById('weightInput');
+    const codInput = document.getElementById('codInput');
+    const dvInput = document.getElementById('dvInput');
     const totalCost = document.getElementById('totalCost');
+    const baseCostDisp = document.getElementById('baseCost');
+    const feesCostDisp = document.getElementById('feesCost');
+
     function calculate() {
         const rate = parseFloat(tariffSelect.options[tariffSelect.selectedIndex].getAttribute('data-rate'));
         const weight = parseFloat(weightInput.value) || 0;
-        const cost = weight * rate;
-        totalCost.textContent = cost.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const cod = parseFloat(codInput.value) || 0;
+        const dv = parseFloat(dvInput.value) || 0;
+
+        const base = weight * rate;
+        const inv = document.getElementsByName('inventory')[0].value.trim() !== '' ? base * 0.02 : 0;
+        const fees = (cod * 0.015) + (dv * 0.017) + inv;
+        const total = base + fees;
+
+        baseCostDisp.textContent = base.toFixed(2);
+        feesCostDisp.textContent = fees.toFixed(2);
+        totalCost.textContent = total.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' BYN';
     }
     tariffSelect.addEventListener('change', calculate);
     weightInput.addEventListener('input', calculate);
+    codInput.addEventListener('input', calculate);
+    dvInput.addEventListener('input', calculate);
     calculate();
 });
 

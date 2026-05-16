@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS `parcels` (
   `tariff` varchar(10) DEFAULT 'ST',
   `cod` decimal(10,2) DEFAULT '0.00',
   `declared_value` decimal(10,2) DEFAULT '0.00',
+  `inventory` text DEFAULT NULL,
   `is_paid` tinyint(1) DEFAULT '0',
   `pay_on_delivery` tinyint(1) DEFAULT '0',
   `is_cod_paid` tinyint(1) DEFAULT '0',
@@ -114,6 +115,7 @@ CREATE TABLE IF NOT EXISTS `parcel_followers` (
 CREATE TABLE IF NOT EXISTS `money_transfers` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `transfer_code` varchar(20) NOT NULL,
+  `secret_code` varchar(10) DEFAULT NULL,
   `sender_id` int(11) NOT NULL,
   `recipient_id` int(11) NOT NULL,
   `amount` decimal(10,2) NOT NULL,

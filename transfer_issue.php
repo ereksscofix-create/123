@@ -17,10 +17,11 @@ $transfer = null;
 
 if (isset($_POST['search'])) {
     $code = trim($_POST['transfer_code']);
-    $stmt = $pdo->prepare("SELECT * FROM money_transfers WHERE transfer_code = :code AND status = 'paid' LIMIT 1");
-    $stmt->execute(['code' => $code]);
+    $secret = trim($_POST['secret_code']);
+    $stmt = $pdo->prepare("SELECT * FROM money_transfers WHERE transfer_code = :code AND secret_code = :secret AND status = 'paid' LIMIT 1");
+    $stmt->execute(['code' => $code, 'secret' => $secret]);
     $transfer = $stmt->fetch();
-    if (!$transfer) $error = "Перевод не найден или уже выдан.";
+    if (!$transfer) $error = "Перевод не найден, неверный код или уже выдан.";
 }
 
 if (isset($_POST['issue']) && isset($_POST['id'])) {
@@ -56,8 +57,14 @@ include __DIR__ . '/header.php';
 
                 <?php if (!$transfer): ?>
                 <form method="post">
-                    <label class="form-label fw-bold">Введите код перевода</label>
-                    <input type="text" name="transfer_code" class="form-control form-control-lg mb-3" required placeholder="TR000000BY">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Номер перевода</label>
+                        <input type="text" name="transfer_code" class="form-control form-control-lg" required placeholder="TR000000BY">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Секретный код из уведомления</label>
+                        <input type="text" name="secret_code" class="form-control form-control-lg" required placeholder="XXXX">
+                    </div>
                     <button type="submit" name="search" class="btn btn-success btn-lg w-100 rounded-pill">НАЙТИ ПЕРЕВОД</button>
                 </form>
                 <?php else: ?>

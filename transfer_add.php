@@ -26,12 +26,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $total = $amount + $fee;
 
     $code = 'TR' . rand(100000, 999999) . 'BY';
+    $secret = rand(1000, 9999);
 
     try {
-        $stmt = $pdo->prepare("INSERT INTO money_transfers (transfer_code, sender_id, recipient_id, amount, fee, status, payment_method, receipt_no)
-                               VALUES (:code, :sid, :rid, :amt, :fee, 'paid', :meth, :rec)");
+        $stmt = $pdo->prepare("INSERT INTO money_transfers (transfer_code, secret_code, sender_id, recipient_id, amount, fee, status, payment_method, receipt_no)
+                               VALUES (:code, :secret, :sid, :rid, :amt, :fee, 'paid', :meth, :rec)");
         $stmt->execute([
-            'code' => $code, 'sid' => $sender_id, 'rid' => $recipient_id,
+            'code' => $code, 'secret' => $secret, 'sid' => $sender_id, 'rid' => $recipient_id,
             'amt' => $amount, 'fee' => $fee, 'meth' => $method, 'rec' => $receipt_no
         ]);
         $transfer_id = $pdo->lastInsertId();
@@ -39,19 +40,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Логируем доход (Сумма перевода + Комиссия)
         logTransaction($shift['id'], $user['id'], 'income', 'Денежный перевод (Прием)', $total, $transfer_id);
 
-        notifyUser($recipient_id, "Вам отправлен денежный перевод на сумму $amount BYN. Код: $code");
+        notifyUser($recipient_id, "Вам отправлен денежный перевод на сумму $amount BYN. Номер: $code. Код для получения: $secret");
 
-        $success = "Перевод успешно оформлен! Код: <strong>$code</strong>";
+        $success = "Перевод успешно оформлен! Номер: <strong>$code</strong>";
 
         // Формируем чек
         $receipt_html = "
             <div class='receipt shadow-sm p-4 bg-white mx-auto' style='max-width:350px; font-family:monospace;'>
                 <div class='text-center border-bottom mb-3 pb-2'><h5>EHPST POST</h5> ПЕРЕВОД ПРИНЯТ</div>
-                <div>КОД: <strong>$code</strong></div>
+                <div class='mb-1'>НОМЕР: <strong>$code</strong></div>
+                <div class='mb-1 text-primary'>КОД ПОЛУЧЕНИЯ: <strong>$secret</strong></div>
                 <div>СУММА: $amount BYN</div>
                 <div>СБОР (3%): $fee BYN</div>
                 <div class='border-top mt-2 pt-2 fw-bold'>ИТОГО: $total BYN</div>
-                <div class='text-center mt-4 small'>Сообщите код получателю</div>
+                <div class='text-center mt-4 small'>Сообщите номер и код получателю</div>
                 <button class='btn btn-sm btn-outline-primary w-100 mt-3 d-print-none' onclick='window.print()'>ПЕЧАТЬ ЧЕКА</button>
             </div>";
 
