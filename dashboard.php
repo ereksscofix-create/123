@@ -216,6 +216,9 @@ include __DIR__ . '/header.php';
                                             <?php if ($p['pay_on_delivery']): ?>
                                                 <span class="badge bg-info bg-opacity-10 text-info x-small fw-bold ms-1">ПРИ ПОЛУЧЕНИИ</span>
                                             <?php endif; ?>
+                                            <?php if ($p['cod'] > 0): ?>
+                                                <span class="badge <?php echo $p['is_cod_paid'] ? 'bg-success' : 'bg-warning'; ?> bg-opacity-10 text-<?php echo $p['is_cod_paid'] ? 'success' : 'dark'; ?> x-small fw-bold ms-1">НАЛ.ПЛ: <?php echo $p['is_cod_paid'] ? 'ОК' : 'ЖДЕТ'; ?></span>
+                                            <?php endif; ?>
                                         </div>
                                             <?php
                                                 $st = $p['last_status'] ?: 'Оформлена';
@@ -238,7 +241,11 @@ include __DIR__ . '/header.php';
                                                 <?php if ($p['is_paid']): ?>
                                                     <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_receipt.php?id=<?php echo $p['id']; ?>"><i class="bi bi-receipt me-2"></i>ЧЕК ОБ ОПЛАТЕ</a></li>
                                                 <?php elseif ($role === 'worker'): ?>
-                                                    <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_pay.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash-coin me-2"></i>ОПЛАТИТЬ</a></li>
+                                                    <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_pay.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash-coin me-2"></i>ОПЛАТИТЬ УСЛУГИ</a></li>
+                                                <?php endif; ?>
+
+                                                <?php if ($role === 'worker' && $p['cod'] > 0 && !$p['is_cod_paid']): ?>
+                                                    <li><a class="dropdown-item py-2 fw-bold text-primary" href="parcel_pay_cod.php?id=<?php echo $p['id']; ?>"><i class="bi bi-wallet2 me-2"></i>ПРИНЯТЬ НАЛ.ПЛ.</a></li>
                                                 <?php endif; ?>
                                                     <li><hr class="dropdown-divider"></li>
                                                     <li><a class="dropdown-item py-2" href="parcel_edit.php?id=<?php echo $p['id']; ?>"><i class="bi bi-pencil-square me-2 text-warning"></i>Изменить</a></li>
@@ -296,6 +303,9 @@ include __DIR__ . '/header.php';
                                     <?php if ($p['pay_on_delivery']): ?>
                                         <span class="badge bg-info bg-opacity-10 text-info x-small fw-bold ms-1">ПРИ ПОЛУЧЕНИИ</span>
                                     <?php endif; ?>
+                                    <?php if ($p['cod'] > 0): ?>
+                                        <span class="badge <?php echo $p['is_cod_paid'] ? 'bg-success' : 'bg-warning'; ?> bg-opacity-10 text-<?php echo $p['is_cod_paid'] ? 'success' : 'dark'; ?> x-small fw-bold ms-1">НАЛ.ПЛ: <?php echo $p['is_cod_paid'] ? 'ОК' : 'ЖДЕТ'; ?></span>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="mb-3">
                                     <div class="small fw-bold text-dark mb-1"><i class="bi bi-person me-2 text-muted"></i><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login']); ?></div>
@@ -309,7 +319,11 @@ include __DIR__ . '/header.php';
                                 <?php if ($p['is_paid']): ?>
                                     <a href="parcel_receipt.php?id=<?php echo $p['id']; ?>" class="btn btn-outline-success btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-receipt me-1"></i>ПОСМОТРЕТЬ ЧЕК</a>
                                 <?php elseif ($role === 'worker'): ?>
-                                    <a href="parcel_pay.php?id=<?php echo $p['id']; ?>" class="btn btn-success btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-cash-coin me-1"></i>ОПЛАТИТЬ</a>
+                                    <a href="parcel_pay.php?id=<?php echo $p['id']; ?>" class="btn btn-success btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-cash-coin me-1"></i>ОПЛАТИТЬ УСЛУГИ</a>
+                                <?php endif; ?>
+
+                                <?php if ($role === 'worker' && $p['cod'] > 0 && !$p['is_cod_paid']): ?>
+                                    <a href="parcel_pay_cod.php?id=<?php echo $p['id']; ?>" class="btn btn-primary btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-wallet2 me-1"></i>ПРИНЯТЬ НАЛ.ПЛ.</a>
                                 <?php endif; ?>
                                 <div class="d-flex gap-2">
                                     <div class="dropdown">

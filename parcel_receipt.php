@@ -53,7 +53,12 @@ include __DIR__ . '/header.php';
                 <div class="receipt-row"><span>ОТПРАВИТЕЛЬ:</span> <strong><?php echo e($parcel['s_name'] ?: $parcel['s_login']); ?></strong></div>
                 <div class="receipt-row border-bottom mb-2 pb-2"><span>ПОЛУЧАТЕЛЬ:</span> <strong><?php echo e($parcel['r_name'] ?: $parcel['r_login']); ?></strong></div>
 
-                <div class="receipt-row border-top mt-3 pt-2"><span>ИТОГО:</span> <span class="h4 mb-0 fw-bold"><?php echo number_format($parcel['cost'], 2); ?> BYN</span></div>
+                <div class="receipt-row border-top mt-3 pt-2"><span>УСЛУГИ СВЯЗИ:</span> <strong><?php echo number_format($parcel['cost'], 2); ?> BYN</strong></div>
+                <?php if($parcel['is_cod_paid']): ?>
+                    <div class="receipt-row"><span>НАЛОЖЕННЫЙ ПЛАТЕЖ:</span> <strong><?php echo number_format($parcel['cod'], 2); ?> BYN</strong></div>
+                <?php endif; ?>
+
+                <div class="receipt-row border-top mt-2 pt-2"><span>ИТОГО:</span> <span class="h4 mb-0 fw-bold"><?php echo number_format($parcel['cost'] + ($parcel['is_cod_paid'] ? $parcel['cod'] : 0), 2); ?> BYN</span></div>
 
                 <div class="text-center mt-5">
                     <div class="mb-3 small opacity-75">СПАСИБО, ЧТО ВЫБИРАЕТЕ НАС!</div>

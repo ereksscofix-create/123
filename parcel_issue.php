@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $passport = trim($_POST['passport'] ?? '');
 
     try {
-        $stmt = $pdo->prepare("SELECT id, recipient_id, is_paid, pay_on_delivery FROM parcels WHERE track_code = :track LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, recipient_id, is_paid, pay_on_delivery, cod, is_cod_paid FROM parcels WHERE track_code = :track LIMIT 1");
         $stmt->execute(['track' => $track]);
         $parcel = $stmt->fetch();
 
@@ -58,7 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($can_issue) {
                 if (!$parcel['is_paid']) {
-                    $error = "Посылка не оплачена! Перейдите к оплате: <a href='parcel_pay.php?id={$parcel['id']}'>ОПЛАТИТЬ</a>";
+                    $error = "Посылка не оплачена! Перейдите к оплате: <a href='parcel_pay.php?id={$parcel['id']}'>ОПЛАТИТЬ УСЛУГИ</a>";
+                    $can_issue = false;
+                }
+
+                if ($can_issue && $parcel['cod'] > 0 && !$parcel['is_cod_paid']) {
+                    $error = "Ожидается оплата наложенного платежа! <a href='parcel_pay_cod.php?id={$parcel['id']}'>ОПЛАТИТЬ НАЛОЖЕННЫЙ ПЛАТЕЖ (" . number_format($parcel['cod'], 2) . " BYN)</a>";
                     $can_issue = false;
                 }
             }
