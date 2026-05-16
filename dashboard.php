@@ -6,6 +6,7 @@
 ob_start();
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/functions_finance.php';
 
 // 1. ПРОВЕРКА ВХОДА
 checkLogin();
@@ -143,7 +144,12 @@ include __DIR__ . '/header.php';
                 <p class="opacity-75 mb-3">Ваш системный номер: <strong>#<?php echo $user_id; ?></strong></p>
                 <div class="d-flex gap-2 flex-wrap">
                     <a href="parcel_add.php" class="btn btn-create fw-bold shadow-sm rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Создать посылку</a>
-                    <?php if($role === 'worker'): ?><a href="parcel_issue.php" class="btn btn-success border-0 fw-bold shadow-sm rounded-pill px-4">Выдача</a><?php endif; ?>
+                    <?php if($role === 'worker'): ?>
+                        <a href="parcel_issue.php" class="btn btn-success border-0 fw-bold shadow-sm rounded-pill px-4">Выдача</a>
+                        <a href="shift_manage.php" class="btn btn-dark border-0 fw-bold shadow-sm rounded-pill px-4">Касса / Смены</a>
+                        <a href="transfer_add.php" class="btn btn-warning border-0 fw-bold shadow-sm rounded-pill px-4">Отправить перевод</a>
+                        <a href="transfer_issue.php" class="btn btn-info border-0 fw-bold shadow-sm rounded-pill px-4">Выдать перевод</a>
+                    <?php endif; ?>
                 </div>
             </div>
             <i class="bi bi-lightning-charge position-absolute end-0 bottom-0 mb-n4 me-n2 opacity-10" style="font-size: 15rem;"></i>
@@ -249,6 +255,9 @@ include __DIR__ . '/header.php';
 
                                                 <?php if ($role === 'worker' && $p['cod'] > 0 && !$p['is_cod_paid']): ?>
                                                     <li><a class="dropdown-item py-2 fw-bold text-primary" href="parcel_pay_cod.php?id=<?php echo $p['id']; ?>"><i class="bi bi-wallet2 me-2"></i>ПРИНЯТЬ НАЛ.ПЛ.</a></li>
+                                                <?php endif; ?>
+                                                <?php if ($role === 'worker' && $p['is_cod_paid'] && !$p['is_cod_issued']): ?>
+                                                    <li><a class="dropdown-item py-2 fw-bold text-info" href="parcel_cod_issue.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash me-2"></i>ВЫДАТЬ НАЛ.ПЛ. ОТПРАВИТЕЛЮ</a></li>
                                                 <?php endif; ?>
                                                 <?php if ($role === 'worker' && $p['is_paid'] && !$p['is_refunded']): ?>
                                                     <li><a class="dropdown-item py-2 text-danger" href="parcel_refund.php?id=<?php echo $p['id']; ?>"><i class="bi bi-arrow-counterclockwise me-2"></i>ВОЗВРАТ ДЕНЕГ</a></li>

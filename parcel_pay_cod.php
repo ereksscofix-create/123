@@ -2,12 +2,15 @@
 // parcel_pay_cod.php — Оплата наложенного платежа при получении
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/functions_finance.php';
 checkLogin();
 
 $user = currentUser();
-if (!$user || $user['role'] !== 'worker') {
-    die("Доступ только для сотрудников.");
-}
+if (!$user || $user['role'] !== 'worker') die("Доступ запрещен.");
+
+// Проверка открытой смены
+$shift = getOpenShift($user['id']);
+if (!$shift) die("Ошибка: Смена не открыта. <a href='shift_manage.php'>ОТКРЫТЬ СМЕНУ</a>");
 
 $id = (int)($_GET['id'] ?? 0);
 if (!$id) die("ID посылки не указан.");
@@ -32,6 +35,9 @@ if (isset($_POST['pay'])) {
     try {
         $stmt = $pdo->prepare("UPDATE parcels SET is_cod_paid = 1 WHERE id = :id");
         $stmt->execute(['id' => $id]);
+
+        // Логируем транзакцию (приход наложенного платежа)
+        logTransaction($shift['id'], $user['id'], 'income', 'Прием наложенного платежа', $parcel['cod'], $id);
 
         $status_text = "Оплачен наложенный платеж ($method, №$receipt) [" . date('d.m.Y H:i') . "] (Кассир: " . ($user['name'] ?: $user['login']) . ")";
         $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");

@@ -61,7 +61,8 @@ try {
         'sender_address' => "TEXT DEFAULT NULL AFTER recipient_id",
         'is_paid' => "TINYINT(1) DEFAULT 0 AFTER declared_value",
         'is_cod_paid' => "TINYINT(1) DEFAULT 0 AFTER is_paid",
-        'is_refunded' => "TINYINT(1) DEFAULT 0 AFTER is_cod_paid",
+        'is_cod_issued' => "TINYINT(1) DEFAULT 0 AFTER is_cod_paid",
+        'is_refunded' => "TINYINT(1) DEFAULT 0 AFTER is_cod_issued",
         'pay_on_delivery' => "TINYINT(1) DEFAULT 0 AFTER is_refunded",
         'payment_method' => "VARCHAR(20) DEFAULT NULL AFTER pay_on_delivery",
         'receipt_no' => "VARCHAR(50) DEFAULT NULL AFTER payment_method",
@@ -91,18 +92,19 @@ try {
         echo "</li>";
     }
 
-    // 5. Создание таблицы parcel_followers
-    echo "<li>Создание таблицы parcel_followers... ";
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `parcel_followers` (
-      `id` int(11) NOT NULL AUTO_INCREMENT,
-      `user_id` int(11) NOT NULL,
-      `parcel_id` int(11) NOT NULL,
-      PRIMARY KEY (`id`),
-      UNIQUE KEY `user_parcel` (`user_id`,`parcel_id`),
-      CONSTRAINT `pf_user_fix` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-      CONSTRAINT `pf_parcel_fix` FOREIGN KEY (`parcel_id`) REFERENCES `parcels` (`id`) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-    echo "<span class='ok'>ГОТОВО</span></li>";
+    // 5. Создание новых таблиц (Денежные переводы, Смены)
+    $new_tables = [
+        'parcel_followers' => "id int(11) NOT NULL AUTO_INCREMENT, user_id int(11) NOT NULL, parcel_id int(11) NOT NULL, PRIMARY KEY (id), UNIQUE KEY user_parcel (user_id,parcel_id)",
+        'money_transfers' => "id int(11) NOT NULL AUTO_INCREMENT, transfer_code varchar(20) NOT NULL, sender_id int(11) NOT NULL, recipient_id int(11) NOT NULL, amount decimal(10,2) NOT NULL, fee decimal(10,2) DEFAULT '0.00', status enum('pending','paid','issued','refunded') DEFAULT 'pending', payment_method varchar(20) DEFAULT NULL, receipt_no varchar(50) DEFAULT NULL, created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY (transfer_code)",
+        'shifts' => "id int(11) NOT NULL AUTO_INCREMENT, worker_id int(11) NOT NULL, opened_at timestamp NULL DEFAULT CURRENT_TIMESTAMP, closed_at timestamp NULL DEFAULT NULL, is_closed tinyint(1) DEFAULT '0', PRIMARY KEY (id)",
+        'transactions' => "id int(11) NOT NULL AUTO_INCREMENT, shift_id int(11) NOT NULL, worker_id int(11) NOT NULL, type enum('income','expense') NOT NULL, category varchar(50) NOT NULL, amount decimal(10,2) NOT NULL, related_id int(11) DEFAULT NULL, created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id)"
+    ];
+
+    foreach($new_tables as $tname => $tdef) {
+        echo "<li>Таблица $tname... ";
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `$tname` ($tdef) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+        echo "<span class='ok'>OK</span></li>";
+    }
 
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
     echo "<li>Проверки внешних ключей включены.</li>";

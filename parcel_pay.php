@@ -2,12 +2,15 @@
 // parcel_pay.php — Оплата посылки работником
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/functions_finance.php';
 checkLogin();
 
 $user = currentUser();
-if (!$user || $user['role'] !== 'worker') {
-    die("Доступ только для сотрудников.");
-}
+if (!$user || $user['role'] !== 'worker') die("Доступ запрещен.");
+
+// Проверка открытой смены
+$shift = getOpenShift($user['id']);
+if (!$shift) die("Ошибка: Смена не открыта. <a href='shift_manage.php'>ОТКРЫТЬ СМЕНУ</a>");
 
 $id = (int)($_GET['id'] ?? 0);
 if (!$id) die("ID посылки не указан.");
@@ -35,6 +38,9 @@ if (isset($_POST['pay'])) {
     try {
         $stmt = $pdo->prepare("UPDATE parcels SET is_paid = 1, payment_method = :m, receipt_no = :r WHERE id = :id");
         $stmt->execute(['m' => $method, 'r' => $receipt, 'id' => $id]);
+
+        // Логируем транзакцию
+        logTransaction($shift['id'], $user['id'], 'income', 'Услуги связи', $cost, $id);
 
         $status_text = "Оплачено ($method, №$receipt) [" . date('d.m.Y H:i') . "] (Кассир: " . ($user['name'] ?: $user['login']) . ")";
         $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");

@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS `parcels` (
   `is_paid` tinyint(1) DEFAULT '0',
   `pay_on_delivery` tinyint(1) DEFAULT '0',
   `is_cod_paid` tinyint(1) DEFAULT '0',
+  `is_cod_issued` tinyint(1) DEFAULT '0',
   `is_refunded` tinyint(1) DEFAULT '0',
   `payment_method` varchar(20) DEFAULT NULL,
   `receipt_no` varchar(50) DEFAULT NULL,
@@ -103,6 +104,51 @@ CREATE TABLE IF NOT EXISTS `parcel_followers` (
   UNIQUE KEY `user_parcel` (`user_id`,`parcel_id`),
   CONSTRAINT `pf_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `pf_parcel` FOREIGN KEY (`parcel_id`) REFERENCES `parcels` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------
+-- Table structure for money_transfers
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `money_transfers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `transfer_code` varchar(20) NOT NULL,
+  `sender_id` int(11) NOT NULL,
+  `recipient_id` int(11) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `fee` decimal(10,2) DEFAULT '0.00',
+  `status` enum('pending','paid','issued','refunded') DEFAULT 'pending',
+  `payment_method` varchar(20) DEFAULT NULL,
+  `receipt_no` varchar(50) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `transfer_code` (`transfer_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------
+-- Table structure for shifts
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `shifts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `worker_id` int(11) NOT NULL,
+  `opened_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `closed_at` timestamp NULL DEFAULT NULL,
+  `is_closed` tinyint(1) DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------
+-- Table structure for transactions
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `transactions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `shift_id` int(11) NOT NULL,
+  `worker_id` int(11) NOT NULL,
+  `type` enum('income','expense') NOT NULL,
+  `category` varchar(50) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `related_id` int(11) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;
