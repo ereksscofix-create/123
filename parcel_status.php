@@ -30,20 +30,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($final_status !== '') {
         try {
-            // Удаляем created_at из запроса
+            // Добавляем информацию о том, кто изменил статус, прямо в текст статуса (для истории)
+            $worker_name = $user['name'] ?: $user['login'];
+            $full_status_text = $final_status . " (Оператор: " . $worker_name . ")";
+
             $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
-            $stmt->execute(['pid' => $id, 'txt' => $final_status]);
+            $stmt->execute(['pid' => $id, 'txt' => $full_status_text]);
+
+            // Формируем сообщение для уведомления
+            $date_str = date('d.m.Y H:i');
+            $notif_msg = "Статус посылки {$parcel['track_code']} изменен на: \"$final_status\". Дата: $date_str. Изменил: $worker_name.";
 
             if (mb_stripos($final_status, 'ожидает') !== false && mb_stripos($final_status, 'получения') !== false) {
                 $code = rand(1000, 9999);
                 $secret = rand(100000, 999999);
-                // В parcel_codes тоже убираем created_at если он там был (судя по ошибке в других таблицах)
                 $stmt = $pdo->prepare("INSERT INTO parcel_codes (parcel_id, code, secret_code, code_date) VALUES (:pid, :code, :secret, DATE(NOW()))");
                 $stmt->execute(['pid' => $id, 'code' => $code, 'secret' => $secret]);
 
-                notifyUser($parcel['recipient_id'], "Ваша посылка {$parcel['track_code']} ожидает получения! Ваш код: $code", 'info', true);
+                $notif_msg .= " Ваш код получения: $code";
+                notifyUser($parcel['recipient_id'], $notif_msg, 'info', true);
             } else {
-                notifyUser($parcel['recipient_id'], "Статус вашей посылки {$parcel['track_code']} обновлен: $final_status");
+                notifyUser($parcel['recipient_id'], $notif_msg);
             }
 
             header("Location: dashboard.php");
@@ -73,8 +80,8 @@ include __DIR__ . '/header.php';
 
                 <form method="post">
                     <div class="mb-4">
-                        <label class="form-label fw-bold">Выберите новый статус</label>
-                        <select name="status_text" class="form-select form-select-lg mb-3" onchange="toggleCustomStatus(this.value)">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Выберите новый статус</label>
+                        <select name="status_text" class="form-select form-select-lg mb-3 shadow-none border-2" onchange="toggleCustomStatus(this.value)">
                             <option value="В пути">В пути</option>
                             <option value="Прибыло в сортировочный центр">Прибыло в сортировочный центр</option>
                             <option value="Ожидает получения">Ожидает получения (генерирует код)</option>
@@ -82,13 +89,13 @@ include __DIR__ . '/header.php';
                             <option value="custom">-- Свой вариант --</option>
                         </select>
                         <div id="custom_status_div" style="display:none;">
-                            <input type="text" name="custom_status" class="form-control" placeholder="Введите статус вручную...">
+                            <input type="text" name="custom_status" class="form-control form-control-lg border-2 shadow-none" placeholder="Введите статус вручную...">
                         </div>
                     </div>
 
                     <div class="mt-4 pt-3 border-top">
-                        <button type="submit" class="btn btn-primary w-100 btn-lg rounded-pill shadow-sm fw-bold">Обновить статус</button>
-                        <a href="dashboard.php" class="btn btn-link w-100 text-muted mt-2 text-decoration-none">Отмена</a>
+                        <button type="submit" class="btn btn-primary w-100 btn-lg rounded-pill shadow-sm fw-bold">ПОДТВЕРДИТЬ ИЗМЕНЕНИЕ</button>
+                        <a href="dashboard.php" class="btn btn-link w-100 text-muted mt-2 text-decoration-none small fw-bold">ОТМЕНА</a>
                     </div>
                 </form>
             </div>
