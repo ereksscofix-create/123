@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
                 $stmt->execute(['pid' => $parcel_id, 'txt' => $status_text]);
 
-                $success = "Посылка <strong>$track</strong> успешно оформлена!<br>Стоимость: <strong>" . number_format($cost, 2) . " BYN</strong>" . ($success_warning ?? '');
+                $success = "Посылка <strong>$track</strong> успешно оформлена!<br>Стоимость: <strong>" . number_format($cost, 2) . " BYN</strong><br><span class='text-danger fw-bold'>СТАТУС: ОЖИДАЕТ ОПЛАТЫ</span>" . ($success_warning ?? '');
             }
         } catch (PDOException $e) { $error = $e->getMessage(); }
     }

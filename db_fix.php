@@ -52,17 +52,24 @@ try {
 
     echo "</ul></li>";
 
-    // 3. Добавление sender_address в parcels
-    echo "<li>Проверка sender_address в parcels... ";
+    // 3. Добавление колонок в parcels
+    echo "<li>Проверка колонок в parcels... ";
     $s = $pdo->query("DESCRIBE parcels");
     $cols = $s->fetchAll(PDO::FETCH_COLUMN);
-    if (!in_array('sender_address', $cols)) {
-        $pdo->exec("ALTER TABLE parcels ADD COLUMN sender_address TEXT DEFAULT NULL AFTER recipient_id");
-        echo "<span class='ok'>ДОБАВЛЕНО</span>";
-    } else {
-        echo "<span class='ok'>ЕСТЬ</span>";
+
+    $to_add = [
+        'sender_address' => "TEXT DEFAULT NULL AFTER recipient_id",
+        'is_paid' => "TINYINT(1) DEFAULT 0 AFTER declared_value",
+        'is_return' => "TINYINT(1) DEFAULT 0 AFTER is_paid"
+    ];
+
+    foreach($to_add as $col => $def) {
+        if (!in_array($col, $cols)) {
+            $pdo->exec("ALTER TABLE parcels ADD COLUMN $col $def");
+            echo "<span class='ok'>$col+ </span>";
+        }
     }
-    echo "</li>";
+    echo "<span class='ok'>ГОТОВО</span></li>";
 
     // 4. Проверка created_at в таблицах
     $tables = ['parcel_status', 'notifications', 'parcel_codes'];

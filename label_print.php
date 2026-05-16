@@ -20,6 +20,17 @@ try {
     $parcel = $stmt->fetch();
     if (!$parcel) die("Посылка не найдена");
 
+    // Автоматический переход в режим возврата при открытии возвратного ярлыка
+    if ($is_return && (int)$parcel['is_return'] === 0) {
+        $stmt = $pdo->prepare("UPDATE parcels SET is_return = 1 WHERE id = :id");
+        $stmt->execute(['id' => $parcel_id]);
+
+        $status_text = "Оформлен возврат [" . date('d.m.Y H:i') . "]";
+        $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
+        $stmt->execute(['pid' => $parcel_id, 'txt' => $status_text]);
+        $parcel['is_return'] = 1;
+    }
+
     // Проверяем, есть ли уже код для этой посылки (любая дата, или можно ограничить)
     $stmt = $pdo->prepare("SELECT secret_code FROM parcel_codes WHERE parcel_id = :pid ORDER BY id DESC LIMIT 1");
     $stmt->execute(['pid' => $parcel_id]);

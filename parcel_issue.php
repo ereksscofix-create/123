@@ -57,11 +57,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($can_issue) {
-                $status_text = "Выдана " . $method;
+                $worker_name = $user['name'] ?: $user['login'];
+                $status_text = "Выдана $method [" . date('d.m.Y H:i') . "] (Оператор: $worker_name)";
                 $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
                 $stmt->execute(['pid' => $parcel_id, 'txt' => $status_text]);
 
-                notifyUser($recipient_id, "Ваша посылка $track успешно выдана.");
+                // Уведомляем правильного человека (получателя или отправителя в случае возврата)
+                $stmt_p = $pdo->prepare("SELECT sender_id, recipient_id, is_return FROM parcels WHERE id = :id");
+                $stmt_p->execute(['id' => $parcel_id]);
+                $p_data = $stmt_p->fetch();
+                $target_uid = ((int)($p_data['is_return'] ?? 0) === 1) ? $p_data['sender_id'] : $p_data['recipient_id'];
+
+                notifyUser($target_uid, "Ваша посылка $track успешно выдана.");
                 $success = "Посылка успешно выдана! Метод: $method";
             } else {
                 $error = "Не удалось подтвердить выдачу. Проверьте код или введите данные паспорта.";

@@ -203,6 +203,16 @@ include __DIR__ . '/header.php';
                                         </div>
                                         </td>
                                         <td>
+                                        <div class="mb-1">
+                                            <?php if ($p['is_paid']): ?>
+                                                <span class="badge bg-success bg-opacity-10 text-success x-small fw-bold">ОПЛАЧЕНО</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-danger bg-opacity-10 text-danger x-small fw-bold">НЕ ОПЛАЧЕНО</span>
+                                            <?php endif; ?>
+                                            <?php if ($p['is_return']): ?>
+                                                <span class="badge bg-warning bg-opacity-10 text-dark x-small fw-bold ms-1">ВОЗВРАТ</span>
+                                            <?php endif; ?>
+                                        </div>
                                             <?php
                                                 $st = $p['last_status'] ?: 'Оформлена';
                                                 $bc = 'bg-primary';
@@ -221,6 +231,9 @@ include __DIR__ . '/header.php';
                                                 <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2">
                                                     <li><a class="dropdown-item py-2" href="parcel_history.php?id=<?php echo $p['id']; ?>"><i class="bi bi-clock-history me-2 text-primary"></i>История</a></li>
                                                     <li><a class="dropdown-item py-2" href="label_print.php?id=<?php echo $p['id']; ?>"><i class="bi bi-printer me-2 text-primary"></i>Печать</a></li>
+                                                <?php if ($role === 'worker' && !$p['is_paid']): ?>
+                                                    <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_pay.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash-coin me-2"></i>ОПЛАТИТЬ</a></li>
+                                                <?php endif; ?>
                                                     <li><hr class="dropdown-divider"></li>
                                                     <li><a class="dropdown-item py-2" href="parcel_edit.php?id=<?php echo $p['id']; ?>"><i class="bi bi-pencil-square me-2 text-warning"></i>Изменить</a></li>
                                                     <?php if ($role === 'worker'): ?>
@@ -261,6 +274,16 @@ include __DIR__ . '/header.php';
                                     <span class="badge <?php echo $bc; ?> py-2 px-3 rounded-pill fw-bold" style="font-size: 0.65rem;">
                                         <?php echo e(mb_strtoupper($st)); ?>
                                     </span>
+                                </div>
+                                <div class="mb-2">
+                                    <?php if ($p['is_paid']): ?>
+                                        <span class="badge bg-success bg-opacity-10 text-success x-small fw-bold">ОПЛАЧЕНО</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-danger bg-opacity-10 text-danger x-small fw-bold">НЕ ОПЛАЧЕНО</span>
+                                    <?php endif; ?>
+                                    <?php if ($p['is_return']): ?>
+                                        <span class="badge bg-warning bg-opacity-10 text-dark x-small fw-bold ms-1">ВОЗВРАТ</span>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="mb-3">
                                     <div class="small fw-bold text-dark mb-1"><i class="bi bi-person me-2 text-muted"></i><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login']); ?></div>

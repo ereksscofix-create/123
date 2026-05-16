@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS `parcels` (
   `tariff` varchar(10) DEFAULT 'ST',
   `cod` decimal(10,2) DEFAULT '0.00',
   `declared_value` decimal(10,2) DEFAULT '0.00',
+  `is_paid` tinyint(1) DEFAULT '0',
+  `is_return` tinyint(1) DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `track_code` (`track_code`),
