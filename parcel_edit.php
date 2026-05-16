@@ -32,6 +32,11 @@ try {
     $stmt->execute(['id' => $id]);
     $parcel = $stmt->fetch();
     if (!$parcel) die("Посылка не найдена");
+
+    // ПРОВЕРКА ПРАВ: Работник может всё, пользователь — только свои посылки
+    if ($user['role'] !== 'worker' && (int)$parcel['sender_id'] !== (int)$user['id']) {
+        die("У вас нет прав на редактирование этой посылки.");
+    }
 } catch (PDOException $e) {
     die("Ошибка БД: " . $e->getMessage());
 }

@@ -14,6 +14,19 @@ $id = (int)($_GET['id'] ?? 0);
 
 if ($id > 0) {
     try {
+        // Сначала проверим, чья это посылка (защита от IDOR)
+        $stmt = $pdo->prepare("SELECT sender_id FROM parcels WHERE id = :id");
+        $stmt->execute(['id' => $id]);
+        $p = $stmt->fetch();
+
+        if ($p) {
+            if ($user['role'] !== 'worker' && (int)$p['sender_id'] !== (int)$user['id']) {
+                die("У вас нет прав на удаление этой посылки.");
+            }
+        } else {
+            die("Посылка не найдена.");
+        }
+
         // Удаляем связанные данные сначала (статусы и коды)
         $stmt = $pdo->prepare("DELETE FROM parcel_status WHERE parcel_id = :id");
         $stmt->execute(['id' => $id]);

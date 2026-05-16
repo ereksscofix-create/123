@@ -33,11 +33,15 @@ $parcels = [];
 $codes = [];
 
 try {
-    // Уведомления
-    $stmt = $pdo->prepare("SELECT id, message, is_read FROM notifications WHERE user_id = :uid ORDER BY id DESC LIMIT 20");
+    // Уведомления: Сначала считаем ВСЕ непрочитанные
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = :uid AND is_read = 0");
+    $stmt->execute(['uid' => $user_id]);
+    $unreadCount = (int)$stmt->fetchColumn();
+
+    // Загружаем последние 15 уведомлений для списка
+    $stmt = $pdo->prepare("SELECT id, message, is_read FROM notifications WHERE user_id = :uid ORDER BY id DESC LIMIT 15");
     $stmt->execute(['uid' => $user_id]);
     $notifications = $stmt->fetchAll();
-    foreach($notifications as $n) if(!$n['is_read']) $unreadCount++;
 
     // Статистика (всегда видим реальные цифры)
     if ($role === 'worker') {
@@ -109,8 +113,15 @@ include __DIR__ . '/header.php';
 .btn-create:hover { background: #59359a; color: #fff; }
 .card-parcel { transition: 0.3s; border: 1px solid rgba(0,0,0,0.05); }
 .card-parcel:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important; }
-.mobile-fab { position: fixed; bottom: 20px; right: 20px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(111, 66, 193, 0.4); }
+.mobile-fab { position: fixed; bottom: 20px; right: 20px; z-index: 1000; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(111, 66, 193, 0.4); }
 @media (min-width: 992px) { .mobile-fab { display: none; } }
+@media (max-width: 768px) {
+    .h3-mobile { font-size: 1.15rem; }
+    .card-body { padding: 0.85rem !important; }
+    .p-4 { padding: 0.85rem !important; }
+    .mb-3, .mb-4 { margin-bottom: 0.6rem !important; }
+    .btn { padding: 0.6rem 1.2rem; font-size: 0.85rem; }
+}
 </style>
 
 <!-- Floating Action Button for Mobile -->
@@ -118,13 +129,13 @@ include __DIR__ . '/header.php';
     <i class="bi bi-plus-lg fs-3"></i>
 </a>
 
-<div class="row g-4 animate-fade-in">
+<div class="row g-3 g-lg-4 animate-fade-in">
 
     <!-- 1. ПРИВЕТСТВИЕ И СТАТИСТИКА -->
     <div class="col-lg-8">
-        <div class="card bg-primary text-white p-4 border-0 shadow-lg rounded-4 overflow-hidden position-relative mb-4">
+        <div class="card bg-primary text-white p-3 p-md-4 border-0 shadow-lg rounded-4 overflow-hidden position-relative mb-3 mb-md-4">
             <div class="position-relative z-index-2">
-                <h2 class="fw-bold mb-1">Привет, <?php echo e($name); ?>! 👋</h2>
+                <h2 class="fw-bold mb-1 h3-mobile">Привет, <?php echo e($name); ?>! 👋</h2>
                 <p class="opacity-75 mb-3">Ваш системный номер: <strong>#<?php echo $user_id; ?></strong></p>
                 <div class="d-flex gap-2 flex-wrap">
                     <a href="parcel_add.php" class="btn btn-create fw-bold shadow-sm rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Создать посылку</a>
@@ -276,13 +287,13 @@ include __DIR__ . '/header.php';
 
     <!-- 2. ПРАВАЯ ПАНЕЛЬ -->
     <div class="col-lg-4">
-        <div class="card border-0 shadow-sm border-start border-success border-5 rounded-4 mb-4">
-            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+        <div class="card border-0 shadow-sm border-start border-success border-5 rounded-4 mb-3 mb-md-4">
+            <div class="card-body p-3 p-md-4 d-flex justify-content-between align-items-center">
                 <div>
                     <div class="text-muted small fw-bold text-uppercase mb-1"><?php echo $role === 'worker' ? 'Выручка системы' : 'Мои расходы'; ?></div>
-                    <div class="h3 mb-0 fw-extrabold text-success"><?php echo number_format($total_revenue, 2); ?> <span class="small">BYN</span></div>
+                    <div class="h4 mb-0 fw-extrabold text-success"><?php echo number_format($total_revenue, 2); ?> <span class="small">BYN</span></div>
                 </div>
-                <div class="bg-success bg-opacity-10 p-3 rounded-circle text-success"><i class="bi bi-wallet2 fs-3"></i></div>
+                <div class="bg-success bg-opacity-10 p-2 p-md-3 rounded-circle text-success"><i class="bi bi-wallet2 fs-4 fs-md-3"></i></div>
             </div>
         </div>
 

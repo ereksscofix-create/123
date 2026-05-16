@@ -37,6 +37,11 @@
             overflow-x: hidden;
         }
 
+        @media (max-width: 768px) {
+            body { font-size: 14px; }
+            .container { padding-left: 12px; padding-right: 12px; }
+        }
+
         /* ===== NAVBAR ===== */
         .navbar {
             background: rgba(255, 255, 255, 0.9) !important;
@@ -120,6 +125,10 @@
         .main-content {
             padding: 2.5rem 0;
             min-height: calc(100vh - 180px);
+        }
+
+        @media (max-width: 768px) {
+            .main-content { padding: 1rem 0; }
         }
 
         .x-small { font-size: 0.75rem; }

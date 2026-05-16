@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
 
                 $parcel_id = $pdo->lastInsertId();
-                $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, 'Оформлена')");
+                $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text, created_at) VALUES (:pid, 'Оформлена', NOW())");
                 $stmt->execute(['pid' => $parcel_id]);
 
                 $success = "Посылка <strong>$track</strong> успешно оформлена!<br>Стоимость: <strong>" . number_format($cost, 2) . " BYN</strong>";
@@ -90,16 +90,16 @@ include __DIR__ . '/header.php';
 <div class="row justify-content-center py-4">
     <div class="col-md-10 col-lg-7">
         <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
-            <div class="card-header bg-primary text-white p-4 border-0">
+            <div class="card-header bg-primary text-white p-3 p-md-4 border-0">
                 <div class="d-flex align-items-center">
-                    <div class="bg-white bg-opacity-20 p-3 rounded-circle me-3"><i class="bi bi-box-seam-fill fs-2"></i></div>
+                    <div class="bg-white bg-opacity-20 p-2 p-md-3 rounded-circle me-2 me-md-3"><i class="bi bi-box-seam-fill fs-3 fs-md-2"></i></div>
                     <div>
-                        <h4 class="mb-0 fw-bold">Новое отправление</h4>
-                        <p class="mb-0 opacity-75 small">Заполните данные для создания трек-кода</p>
+                        <h4 class="mb-0 fw-bold fs-5 fs-md-4">Новое отправление</h4>
+                        <p class="mb-0 opacity-75 small d-none d-md-block">Заполните данные для создания трек-кода</p>
                     </div>
                 </div>
             </div>
-            <div class="card-body p-4 p-md-5">
+            <div class="card-body p-3 p-md-5">
                 <?php if ($success): ?>
                     <div class="alert alert-success border-0 shadow-sm d-flex align-items-center mb-5 p-4 rounded-4">
                         <i class="bi bi-check-circle-fill fs-2 me-3 text-success"></i>
@@ -161,9 +161,9 @@ include __DIR__ . '/header.php';
                         <input type="number" name="declared_value" class="form-control rounded-3" step="0.01" value="0.00">
                     </div>
 
-                    <div class="col-12 mt-5">
-                        <button type="submit" class="btn btn-create btn-lg w-100 rounded-pill py-3 fw-extrabold text-uppercase">
-                            <i class="bi bi-plus-lg me-2"></i>Сформировать посылку
+                    <div class="col-12 mt-3 mt-md-5">
+                        <button type="submit" class="btn btn-create btn-lg w-100 rounded-pill py-2 py-md-3 fw-extrabold text-uppercase">
+                            <i class="bi bi-plus-lg me-2"></i>Сформировать
                         </button>
                     </div>
                 </form>

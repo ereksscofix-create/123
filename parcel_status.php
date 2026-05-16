@@ -17,6 +17,9 @@ try {
     $stmt->execute(['id' => $id]);
     $parcel = $stmt->fetch();
     if (!$parcel) die("Посылка не найдена");
+
+    // ВАЖНО: Работник может менять статус любой посылки, но обычный пользователь — только своей (если бы у него была кнопка)
+    // Но в нашей системе менять статус может только worker, так что проверка роли выше достаточна.
 } catch (PDOException $e) {
     die("Ошибка БД: " . $e->getMessage());
 }
@@ -25,6 +28,7 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $status = trim($_POST['status_text'] ?? '');
     $custom_status = trim($_POST['custom_status'] ?? '');
+    $location = trim($_POST['location'] ?? '');
 
     $final_status = ($status === 'custom') ? $custom_status : $status;
 
@@ -32,10 +36,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             // Добавляем информацию о том, кто изменил статус, прямо в текст статуса (для истории)
             $worker_name = $user['name'] ?: $user['login'];
-            $full_status_text = $final_status . " (Оператор: " . $worker_name . ")";
+            $full_status_text = $final_status;
+            if ($location !== '') {
+                $full_status_text .= " [" . $location . "]";
+            }
+            $full_status_text .= " (Оператор: " . $worker_name . ")";
 
-            $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
-            $stmt->execute(['pid' => $id, 'txt' => $full_status_text]);
+            // Резольвер для created_at (на случай если колонки нет в БД)
+            try {
+                $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text, created_at) VALUES (:pid, :txt, NOW())");
+                $stmt->execute(['pid' => $id, 'txt' => $full_status_text]);
+            } catch (PDOException $e) {
+                // Если колонки created_at нет — пишем без неё (БД сама может ставить default или мы зашьем время в текст)
+                $full_status_text .= " [" . date('d.m.Y H:i') . "]";
+                $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
+                $stmt->execute(['pid' => $id, 'txt' => $full_status_text]);
+            }
 
             // Формируем сообщение для уведомления
             $date_str = date('d.m.Y H:i');
@@ -79,18 +95,23 @@ include __DIR__ . '/header.php';
                 <?php endif; ?>
 
                 <form method="post">
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="form-label fw-bold text-muted small text-uppercase">Выберите новый статус</label>
-                        <select name="status_text" class="form-select form-select-lg mb-3 shadow-none border-2" onchange="toggleCustomStatus(this.value)">
+                        <select name="status_text" class="form-select form-select-lg mb-2 shadow-none border-2" onchange="toggleCustomStatus(this.value)">
                             <option value="В пути">В пути</option>
                             <option value="Прибыло в сортировочный центр">Прибыло в сортировочный центр</option>
                             <option value="Ожидает получения">Ожидает получения (генерирует код)</option>
                             <option value="Доставлено">Доставлено</option>
                             <option value="custom">-- Свой вариант --</option>
                         </select>
-                        <div id="custom_status_div" style="display:none;">
+                        <div id="custom_status_div" style="display:none;" class="mb-2">
                             <input type="text" name="custom_status" class="form-control form-control-lg border-2 shadow-none" placeholder="Введите статус вручную...">
                         </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Местоположение / Город</label>
+                        <input type="text" name="location" class="form-control form-control-lg border-2 shadow-none" placeholder="Например: Минск СЦ-1">
                     </div>
 
                     <div class="mt-4 pt-3 border-top">

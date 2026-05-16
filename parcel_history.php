@@ -98,9 +98,20 @@ include __DIR__ . '/header.php';
                                         <div class="badge <?php echo $idx === 0 ? 'bg-primary' : 'bg-light text-muted border'; ?> rounded-pill py-2 px-3 fw-bold shadow-sm">
                                             <i class="bi bi-calendar3 me-2"></i>
                                             <?php
-                                            // Отображаем дату из БД. Если поле пустое, показываем текущую дату (как заглушку)
-                                            $st_date = !empty($st['created_at']) ? $st['created_at'] : date('Y-m-d H:i:s');
-                                            echo date('d.m.Y · H:i', strtotime($st_date));
+                                            // Отображаем дату из БД.
+                                            // Если поле пустое, пробуем вытащить время из текста (резольвер из parcel_status.php)
+                                            $st_date = '';
+                                            if (!empty($st['created_at'])) {
+                                                $st_date = date('d.m.Y · H:i', strtotime($st['created_at']));
+                                            } else {
+                                                // Если в тексте есть [ДД.ММ.ГГГГ ЧЧ:ММ], вытащим его
+                                                if (preg_match('/\[(\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2})\]/', $st['status_text'], $matches)) {
+                                                    $st_date = $matches[1];
+                                                } else {
+                                                    $st_date = "Дата не указана";
+                                                }
+                                            }
+                                            echo e($st_date);
                                             ?>
                                         </div>
                                     </div>
