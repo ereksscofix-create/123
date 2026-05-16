@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $recipient_id = (int)$_POST['recipient_id'];
     $amount = (float)$_POST['amount'];
     $method = $_POST['method'];
-    $receipt_no = $_POST['receipt_no'];
+    $receipt_no = 'TR' . date('ymd') . rand(1000, 9999);
 
     $fee = $amount * 0.03; // Комиссия 3%
     $total = $amount + $fee;
@@ -95,8 +95,10 @@ include __DIR__ . '/header.php';
                             </select>
                         </div>
                         <div class="col-12">
-                            <label class="form-label small fw-bold">Номер чека</label>
-                            <input type="text" name="receipt_no" class="form-control" required>
+                            <div class="p-3 bg-light border rounded-3">
+                                <label class="form-label small fw-bold text-muted d-block mb-1">Номер чека (Авто)</label>
+                                <div class="h6 mb-0 fw-bold">TR<?php echo date('ymd'); ?>XXXX</div>
+                            </div>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill py-3 mt-4 fw-bold">ОПЛАТИТЬ И ОТПРАВИТЬ</button>

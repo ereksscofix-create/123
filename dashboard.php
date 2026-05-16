@@ -146,14 +146,31 @@ include __DIR__ . '/header.php';
                     <a href="parcel_add.php" class="btn btn-create fw-bold shadow-sm rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Создать посылку</a>
                     <?php if($role === 'worker'): ?>
                         <a href="parcel_issue.php" class="btn btn-success border-0 fw-bold shadow-sm rounded-pill px-4">Выдача</a>
-                        <a href="shift_manage.php" class="btn btn-dark border-0 fw-bold shadow-sm rounded-pill px-4">Касса / Смены</a>
-                        <a href="transfer_add.php" class="btn btn-warning border-0 fw-bold shadow-sm rounded-pill px-4">Отправить перевод</a>
-                        <a href="transfer_issue.php" class="btn btn-info border-0 fw-bold shadow-sm rounded-pill px-4">Выдать перевод</a>
                     <?php endif; ?>
                 </div>
             </div>
-            <i class="bi bi-lightning-charge position-absolute end-0 bottom-0 mb-n4 me-n2 opacity-10" style="font-size: 15rem;"></i>
+            <!-- Иконка сдвинута, чтобы не мешать кнопкам -->
+            <i class="bi bi-lightning-charge position-absolute end-0 bottom-0 mb-n5 me-n4 opacity-10" style="font-size: 12rem;"></i>
         </div>
+
+        <?php if($role === 'worker'): ?>
+        <!-- ПАНЕЛЬ УПРАВЛЕНИЯ ДЛЯ РАБОТНИКА (отдельно от карточки с молнией) -->
+        <div class="card border-0 shadow-sm rounded-4 mb-3 mb-md-4 bg-white">
+            <div class="card-body p-3">
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="shift_manage.php" class="btn btn-dark border-0 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
+                        <i class="bi bi-calculator me-2"></i>Касса / Смены
+                    </a>
+                    <a href="transfer_add.php" class="btn btn-outline-primary border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
+                        <i class="bi bi-send-fill me-2"></i>Перевод (отправить)
+                    </a>
+                    <a href="transfer_issue.php" class="btn btn-outline-primary border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
+                        <i class="bi bi-cash-stack me-2"></i>Перевод (выдать)
+                    </a>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- ФИЛЬТРЫ -->
         <div class="card border-0 shadow-sm rounded-4 mb-4">

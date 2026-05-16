@@ -28,7 +28,8 @@ if (isset($_POST['receive'])) {
         $stmt = $pdo->prepare("UPDATE parcels SET shelf = :shelf WHERE id = :id");
         $stmt->execute(['shelf' => $shelf, 'id' => $id]);
 
-        $status_text = "Принято в ПВЗ [" . $parcel['pickup_point'] . "]. Полка: " . $shelf . " [" . date('d.m.Y H:i') . "] (Оператор: " . ($user['name'] ?: $user['login']) . ")";
+        // Номер полки не пишем в публичный статус по просьбе пользователя
+        $status_text = "Принято в ПВЗ [" . $parcel['pickup_point'] . "] [" . date('d.m.Y H:i') . "] (Оператор: " . ($user['name'] ?: $user['login']) . ")";
         $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
         $stmt->execute(['pid' => $id, 'txt' => $status_text]);
 

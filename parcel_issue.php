@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Посылка с таким трек-кодом не найдена.";
         } else {
             if ($parcel['pickup_point'] && $parcel['shelf']) {
-                $success = "📦 ПОСЫЛКА НА ПОЛКЕ: <span class='h4 mb-0 fw-bold text-primary'>{$parcel['shelf']}</span>";
+                $success = "<div class='p-3 bg-primary text-white rounded-3 mb-3'>📦 МЕСТО ХРАНЕНИЯ (ПОЛКА): <span class='display-6 fw-bold ms-2'>{$parcel['shelf']}</span></div>";
             }
             $parcel_id = (int)$parcel['id'];
             $recipient_id = (int)$parcel['recipient_id'];

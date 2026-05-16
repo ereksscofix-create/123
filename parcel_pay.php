@@ -30,7 +30,8 @@ $success = false;
 $error = '';
 if (isset($_POST['pay'])) {
     $method = $_POST['method'] ?? 'Карта';
-    $receipt = trim($_POST['receipt_no'] ?? '');
+    // Автоматическая генерация номера чека
+    $receipt = 'RC' . date('ymd') . rand(1000, 9999);
     $cash_in = (float)($_POST['cash_amount'] ?? 0);
     $cost = (float)$parcel['cost'];
     $change = $cash_in - $cost;
@@ -97,9 +98,10 @@ include __DIR__ . '/header.php';
                         <div class="mt-2 h5 fw-bold text-primary">Сдача: <span id="changeDisplay">0.00</span> BYN</div>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label fw-bold small text-uppercase">Номер чека</label>
-                        <input type="text" name="receipt_no" class="form-control form-control-lg" required placeholder="Введите номер чека">
+                    <div class="mb-4 border p-3 rounded-3 bg-light">
+                        <label class="form-label fw-bold small text-uppercase text-muted d-block mb-1">Номер чека (Авто)</label>
+                        <div class="h5 mb-0 fw-bold">RC<?php echo date('ymd'); ?>XXXX</div>
+                        <div class="form-text">Номер будет сгенерирован автоматически после подтверждения.</div>
                     </div>
 
                     <button type="submit" name="pay" class="btn btn-success btn-lg w-100 rounded-pill py-3 fw-bold text-uppercase shadow-sm">

@@ -30,7 +30,7 @@ try {
 $success = false;
 if (isset($_POST['pay'])) {
     $method = $_POST['method'] ?? 'Карта';
-    $receipt = trim($_POST['receipt_no'] ?? '');
+    $receipt = 'CD' . date('ymd') . rand(1000, 9999);
 
     try {
         $stmt = $pdo->prepare("UPDATE parcels SET is_cod_paid = 1 WHERE id = :id");
@@ -85,9 +85,9 @@ include __DIR__ . '/header.php';
                         <div class="mt-2 h5 fw-bold text-success">Сдача: <span id="changeDisplay">0.00</span> BYN</div>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label fw-bold small text-uppercase">Номер чека</label>
-                        <input type="text" name="receipt_no" class="form-control form-control-lg" required placeholder="Введите номер чека">
+                    <div class="mb-4 border p-3 rounded-3 bg-light">
+                        <label class="form-label fw-bold small text-uppercase text-muted d-block mb-1">Номер чека (Авто)</label>
+                        <div class="h5 mb-0 fw-bold">CD<?php echo date('ymd'); ?>XXXX</div>
                     </div>
 
                     <button type="submit" name="pay" class="btn btn-primary btn-lg w-100 rounded-pill py-3 fw-bold text-uppercase shadow-sm">
