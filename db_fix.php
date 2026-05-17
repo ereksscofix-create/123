@@ -119,7 +119,6 @@ try {
         echo "<li>Таблица $tname... ";
         $pdo->exec("CREATE TABLE IF NOT EXISTS `$tname` ($tdef) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-        // Проверка и добавление secret_code в money_transfers для старых версий
         if ($tname === 'money_transfers') {
             $s = $pdo->query("DESCRIBE money_transfers");
             $mt_cols = $s->fetchAll(PDO::FETCH_COLUMN);
@@ -127,6 +126,16 @@ try {
                 $pdo->exec("ALTER TABLE money_transfers ADD COLUMN secret_code VARCHAR(10) DEFAULT NULL AFTER transfer_code");
                 echo "<span class='ok'>secret_code+ </span>";
             }
+            if (!in_array('refund_code', $mt_cols)) {
+                $pdo->exec("ALTER TABLE money_transfers ADD COLUMN refund_code VARCHAR(20) DEFAULT NULL AFTER status");
+                echo "<span class='ok'>refund_code+ </span>";
+            }
+
+            // Расширяем enum статуса если нужно
+            try {
+                $pdo->exec("ALTER TABLE money_transfers MODIFY COLUMN status ENUM('pending','paid','issued','refunded','refund_pending') DEFAULT 'pending'");
+                echo "<span class='ok'>status_enum_updated </span>";
+            } catch(Exception $e) {}
         }
 
         echo "<span class='ok'>OK</span></li>";
