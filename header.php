@@ -151,6 +151,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="track.php">Отследить</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="stamp_verify.php">Проверка марки</a>
+                    </li>
                     <?php
                     $u = currentUser();
                     if($u):

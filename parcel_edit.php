@@ -51,14 +51,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $inventory = trim($_POST['inventory'] ?? '');
 
     $multiplier = $rates[$tariff_key]['rate'] ?? 10;
-    $base_cost = $weight * $multiplier;
 
-    $cod = (float)$_POST['cod'];
-    $declared_value = (float)$_POST['declared_value'];
+    // Специальная обработка для Марок (N и P)
+    if ($tariff_key === 'N' || $tariff_key === 'P') {
+        $weight = 1.0;
+        $cod = 0.0;
+        $declared_value = 0.0;
+        $inventory = '';
+        $base_cost = $multiplier; // Цена за штуку
+        $cod_fee = 0;
+        $dv_fee = 0;
+        $inv_fee = 0;
+    } else {
+        $base_cost = $weight * $multiplier;
+        $cod = (float)$_POST['cod'];
+        $declared_value = (float)$_POST['declared_value'];
+        $cod_fee = $cod * 0.015;
+        $dv_fee = $declared_value * 0.017;
+        $inv_fee = ($inventory !== '') ? $base_cost * 0.02 : 0;
+    }
 
-    $cod_fee = $cod * 0.015;
-    $dv_fee = $declared_value * 0.017;
-    $inv_fee = ($inventory !== '') ? $base_cost * 0.02 : 0;
     $cost = $base_cost + $cod_fee + $dv_fee + $inv_fee;
 
     try {
@@ -117,7 +129,7 @@ include __DIR__ . '/header.php';
                 <form method="post" class="row g-4">
                     <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">Тариф</label>
-                        <select name="tariff" class="form-select form-select-lg rounded-3" required>
+                        <select name="tariff" id="tariffSelect" class="form-select form-select-lg rounded-3" required onchange="checkStamp(this.value)">
                             <?php foreach ($rates as $key => $data): ?>
                                 <option value="<?php echo $key; ?>" <?php echo $parcel['tariff'] === $key ? 'selected' : ''; ?>><?php echo e($data['name']); ?></option>
                             <?php endforeach; ?>
@@ -125,7 +137,7 @@ include __DIR__ . '/header.php';
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">Вес (кг)</label>
-                        <input type="number" name="weight" class="form-control form-control-lg rounded-3" step="0.001" required value="<?php echo e($parcel['weight']); ?>">
+                        <input type="number" name="weight" id="weightInput" class="form-control form-control-lg rounded-3" step="0.001" required value="<?php echo e($parcel['weight']); ?>">
                     </div>
 
                     <div class="col-md-6">
@@ -156,12 +168,29 @@ include __DIR__ . '/header.php';
 
                     <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">Наложенный платеж (BYN)</label>
-                        <input type="number" name="cod" class="form-control form-control-lg rounded-3" step="0.01" value="<?php echo e($parcel['cod']); ?>">
+                        <input type="number" name="cod" id="codInput" class="form-control form-control-lg rounded-3" step="0.01" value="<?php echo e($parcel['cod']); ?>">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">Объявл. ценность (BYN)</label>
-                        <input type="number" name="declared_value" class="form-control form-control-lg rounded-3" step="0.01" value="<?php echo e($parcel['declared_value']); ?>">
+                        <input type="number" name="declared_value" id="dvInput" class="form-control form-control-lg rounded-3" step="0.01" value="<?php echo e($parcel['declared_value']); ?>">
                     </div>
+
+                    <script>
+                    function checkStamp(val) {
+                        const isStamp = (val === 'N' || val === 'P');
+                        document.getElementById('weightInput').disabled = isStamp;
+                        document.getElementById('codInput').disabled = isStamp;
+                        document.getElementById('dvInput').disabled = isStamp;
+                        document.getElementsByName('inventory')[0].disabled = isStamp;
+                        if (isStamp) {
+                            document.getElementById('weightInput').value = "1.000";
+                            document.getElementById('codInput').value = "0.00";
+                            document.getElementById('dvInput').value = "0.00";
+                            document.getElementsByName('inventory')[0].value = "";
+                        }
+                    }
+                    document.addEventListener('DOMContentLoaded', () => checkStamp(document.getElementById('tariffSelect').value));
+                    </script>
 
                     <div class="col-12 mt-5 pt-3 border-top d-flex flex-wrap gap-3">
                         <button type="submit" class="btn btn-warning px-5 rounded-pill shadow-sm fw-bold flex-grow-1 py-3 text-uppercase">Сохранить изменения</button>

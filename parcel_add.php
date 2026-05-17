@@ -41,10 +41,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Расчет стоимости с комиссиями
     $multiplier = $rates[$tariff_key]['rate'] ?? 10;
-    $base_cost = $weight * $multiplier;
-    $cod_fee = $cod * 0.015; // 1.5%
-    $dv_fee = $declared_value * 0.017; // 1.7%
-    $inv_fee = ($inventory !== '') ? $base_cost * 0.02 : 0; // Опись 2% от тарифа
+
+    // Специальная обработка для Марок (N и P)
+    if ($tariff_key === 'N' || $tariff_key === 'P') {
+        $weight = 1.0;
+        $cod = 0.0;
+        $declared_value = 0.0;
+        $inventory = '';
+        $base_cost = $multiplier; // Цена за штуку
+        $cod_fee = 0;
+        $dv_fee = 0;
+        $inv_fee = 0;
+    } else {
+        $base_cost = $weight * $multiplier;
+        $cod_fee = $cod * 0.015; // 1.5%
+        $dv_fee = $declared_value * 0.017; // 1.7%
+        $inv_fee = ($inventory !== '') ? $base_cost * 0.02 : 0; // Опись 2% от тарифа
+    }
+
     $cost = $base_cost + $cod_fee + $dv_fee + $inv_fee;
 
     $sender_pvz = $_POST['sender_pvz'] ?? '';
@@ -244,14 +258,39 @@ document.addEventListener('DOMContentLoaded', function() {
     const feesCostDisp = document.getElementById('feesCost');
 
     function calculate() {
+        const tariff = tariffSelect.value;
         const rate = parseFloat(tariffSelect.options[tariffSelect.selectedIndex].getAttribute('data-rate'));
+
+        const isStamp = (tariff === 'N' || tariff === 'P');
+
+        // Блокировка полей для марок
+        weightInput.disabled = isStamp;
+        codInput.disabled = isStamp;
+        dvInput.disabled = isStamp;
+        document.getElementsByName('inventory')[0].disabled = isStamp;
+
+        if (isStamp) {
+            weightInput.value = "1.000";
+            codInput.value = "0.00";
+            dvInput.value = "0.00";
+            document.getElementsByName('inventory')[0].value = "";
+        }
+
         const weight = parseFloat(weightInput.value) || 0;
         const cod = parseFloat(codInput.value) || 0;
         const dv = parseFloat(dvInput.value) || 0;
 
-        const base = weight * rate;
-        const inv = document.getElementsByName('inventory')[0].value.trim() !== '' ? base * 0.02 : 0;
-        const fees = (cod * 0.015) + (dv * 0.017) + inv;
+        let base, fees;
+
+        if (isStamp) {
+            base = rate;
+            fees = 0;
+        } else {
+            base = weight * rate;
+            const inv = document.getElementsByName('inventory')[0].value.trim() !== '' ? base * 0.02 : 0;
+            fees = (cod * 0.015) + (dv * 0.017) + inv;
+        }
+
         const total = base + fees;
 
         baseCostDisp.textContent = base.toFixed(2);
