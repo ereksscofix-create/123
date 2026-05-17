@@ -193,6 +193,9 @@ include __DIR__ . '/header.php';
                     <a href="transfer_issue.php" class="btn btn-outline-primary border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
                         <i class="bi bi-cash-stack me-2"></i>Перевод (выдать)
                     </a>
+                    <a href="parcel_cod_refund.php" class="btn btn-outline-danger border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
+                        <i class="bi bi-arrow-counterclockwise me-2"></i>Возврат нал.плат.
+                    </a>
                 </div>
             </div>
         </div>
@@ -302,6 +305,9 @@ include __DIR__ . '/header.php';
                                                 <?php if ($role === 'worker' && $p['is_cod_paid'] && !$p['is_cod_issued']): ?>
                                                     <li><a class="dropdown-item py-2 fw-bold text-info" href="parcel_cod_issue.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash me-2"></i>ВЫДАТЬ НАЛ.ПЛ. ОТПРАВИТЕЛЮ</a></li>
                                                 <?php endif; ?>
+                                                <?php if ($role === 'worker' && $p['refund_code'] && $p['is_cod_paid'] && !$p['cod_refund_issued']): ?>
+                                                    <li><a class="dropdown-item py-2 fw-bold text-danger" href="parcel_cod_refund.php?q=<?php echo $p['refund_code']; ?>"><i class="bi bi-arrow-counterclockwise me-2"></i>ВЕРНУТЬ НАЛ.ПЛ. ПОЛУЧАТЕЛЮ</a></li>
+                                                <?php endif; ?>
                                                 <?php if ($role === 'worker' && $p['pickup_point'] && !$p['shelf']): ?>
                                                     <li><a class="dropdown-item py-2 fw-bold text-primary" href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>"><i class="bi bi-download me-2"></i>ПРИНЯТЬ В ПВЗ</a></li>
                                                 <?php endif; ?>
@@ -388,6 +394,9 @@ include __DIR__ . '/header.php';
 
                                 <?php if ($role === 'worker' && $p['cod'] > 0 && !$p['is_cod_paid']): ?>
                                     <a href="parcel_pay_cod.php?id=<?php echo $p['id']; ?>" class="btn btn-primary btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-wallet2 me-1"></i>ПРИНЯТЬ НАЛ.ПЛ.</a>
+                                <?php endif; ?>
+                                <?php if ($role === 'worker' && $p['refund_code'] && $p['is_cod_paid'] && !$p['cod_refund_issued']): ?>
+                                    <a href="parcel_cod_refund.php?q=<?php echo $p['refund_code']; ?>" class="btn btn-danger btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-arrow-counterclockwise me-1"></i>ВЕРНУТЬ НАЛ.ПЛ. ПОЛУЧАТЕЛЮ</a>
                                 <?php endif; ?>
                                 <?php if ($role === 'worker' && $p['pickup_point'] && !$p['shelf']): ?>
                                     <a href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>" class="btn btn-primary btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-download me-1"></i>ПРИНЯТЬ В ПВЗ</a>

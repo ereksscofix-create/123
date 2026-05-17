@@ -80,7 +80,8 @@ try {
         'dv_fee' => "DECIMAL(10,2) DEFAULT 0.00",
         'inv_fee' => "DECIMAL(10,2) DEFAULT 0.00",
         'stored_at' => "TIMESTAMP NULL DEFAULT NULL",
-        'storage_notified' => "TINYINT(1) DEFAULT 0"
+        'storage_notified' => "TINYINT(1) DEFAULT 0",
+        'return_fee' => "DECIMAL(10,2) DEFAULT 0.00"
     ];
 
     foreach($to_add as $col => $def) {
