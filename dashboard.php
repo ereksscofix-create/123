@@ -34,6 +34,30 @@ $parcels = [];
 $codes = [];
 
 try {
+    // ПРОВЕРКА СРОКОВ ХРАНЕНИЯ (14 дней)
+    if ($role === 'worker') {
+        $stmt = $pdo->query("SELECT id, track_code, pickup_point FROM parcels
+                             WHERE shelf IS NOT NULL AND stored_at IS NOT NULL
+                             AND stored_at < DATE_SUB(NOW(), INTERVAL 14 DAY)
+                             AND storage_notified = 0 AND is_return = 0");
+        $expired = $stmt->fetchAll();
+        foreach ($expired as $ex) {
+            // Уведомляем работника
+            $msg = "Срок хранения посылки {$ex['track_code']} истёк ({$ex['pickup_point']}). Необходимо подготовить возврат.";
+            $stmt = $pdo->prepare("INSERT INTO notifications (user_id, message, type)
+                                   SELECT id, :msg, 'warning' FROM users WHERE role = 'worker'");
+            $stmt->execute(['msg' => $msg]);
+
+            // Авто-возврат (меняем статус и полку)
+            $stmt = $pdo->prepare("UPDATE parcels SET storage_notified = 1, is_return = 1, shelf = 6 WHERE id = :id");
+            $stmt->execute(['id' => $ex['id']]);
+
+            $status_text = "Срок хранения истёк. Автоматический возврат на полку возврата (6) [" . date('d.m.Y H:i') . "]";
+            $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
+            $stmt->execute(['pid' => $ex['id'], 'txt' => $status_text]);
+        }
+    }
+
     // Уведомления: Сначала считаем ВСЕ непрочитанные
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = :uid AND is_read = 0");
     $stmt->execute(['uid' => $user_id]);

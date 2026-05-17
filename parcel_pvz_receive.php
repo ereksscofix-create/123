@@ -39,7 +39,13 @@ if (isset($_POST['receive'])) {
 
         if ($found_shelf > 0) {
             $shelf = $found_shelf;
-            $stmt = $pdo->prepare("UPDATE parcels SET shelf = :shelf WHERE id = :id");
+
+            // Если это возвратная посылка, кладем на "Полку возврата" (например, всегда 6)
+            if ($parcel['is_return']) {
+                $shelf = 6;
+            }
+
+            $stmt = $pdo->prepare("UPDATE parcels SET shelf = :shelf, stored_at = NOW() WHERE id = :id");
             $stmt->execute(['shelf' => $shelf, 'id' => $id]);
 
             // Номер полки не пишем в публичный статус

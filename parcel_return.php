@@ -27,10 +27,13 @@ try {
         $refund_code = 'REF-' . rand(1000, 9999) . '-' . rand(1000, 9999);
     }
 
-    $stmt = $pdo->prepare("UPDATE parcels SET is_return = 1, refund_code = :rc WHERE id = :id");
-    $stmt->execute(['rc' => $refund_code, 'id' => $id]);
+    // Если посылка отправлялась с ПВЗ, при возврате она должна вернуться на тот же ПВЗ
+    $target_pvz = $parcel['sender_pvz'];
 
-    $status_text = "Оформлен возврат (Оплачено) [" . date('d.m.Y H:i') . "] (Оператор: " . ($user['name'] ?: $user['login']) . ")";
+    $stmt = $pdo->prepare("UPDATE parcels SET is_return = 1, refund_code = :rc, pickup_point = :pvz, shelf = NULL WHERE id = :id");
+    $stmt->execute(['rc' => $refund_code, 'pvz' => $target_pvz, 'id' => $id]);
+
+    $status_text = "Оформлен возврат [" . date('d.m.Y H:i') . "] (Оператор: " . ($user['name'] ?: $user['login']) . ")";
     if ($refund_code) {
         $status_text .= " | Сформирован код возврата наложенного платежа: " . $refund_code;
     }

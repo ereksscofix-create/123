@@ -16,31 +16,41 @@ $error = '';
 $transfer = null;
 $transfers = [];
 
-if (isset($_POST['search'])) {
-    $code = trim($_POST['transfer_code'] ?? '');
-    $secret = trim($_POST['secret_code'] ?? '');
-    $search_query = trim($_POST['search_query'] ?? '');
+// Отладка белого экрана
+if (isset($_GET['debug'])) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+}
 
-    if ($code !== '' && $secret !== '') {
-        $stmt = $pdo->prepare("SELECT mt.*, u.name as r_name, u.login as r_login
-                               FROM money_transfers mt
-                               JOIN users u ON mt.recipient_id = u.id
-                               WHERE mt.transfer_code = :code AND mt.secret_code = :secret AND mt.status = 'paid' LIMIT 1");
-        $stmt->execute(['code' => $code, 'secret' => $secret]);
-        $transfer = $stmt->fetch();
-        if (!$transfer) $error = "Перевод не найден или неверный секретный код.";
-    } elseif ($search_query !== '') {
-        // Поиск по имени или логину получателя — может быть несколько
-        $stmt = $pdo->prepare("SELECT mt.*, u.name as r_name, u.login as r_login
-                               FROM money_transfers mt
-                               JOIN users u ON mt.recipient_id = u.id
-                               WHERE (u.name LIKE :q OR u.login LIKE :q) AND mt.status = 'paid'
-                               ORDER BY mt.created_at DESC");
-        $stmt->execute(['q' => "%$search_query%"]);
-        $transfers = $stmt->fetchAll();
-        if (!$transfers) $error = "Активных переводов для данного пользователя не найдено.";
-    } else {
-        $error = "Введите данные для поиска.";
+if (isset($_POST['search'])) {
+    try {
+        $code = trim($_POST['transfer_code'] ?? '');
+        $secret = trim($_POST['secret_code'] ?? '');
+        $search_query = trim($_POST['search_query'] ?? '');
+
+        if ($code !== '' && $secret !== '') {
+            $stmt = $pdo->prepare("SELECT mt.*, u.name as r_name, u.login as r_login
+                                   FROM money_transfers mt
+                                   JOIN users u ON mt.recipient_id = u.id
+                                   WHERE mt.transfer_code = :code AND mt.secret_code = :secret AND mt.status = 'paid' LIMIT 1");
+            $stmt->execute(['code' => $code, 'secret' => $secret]);
+            $transfer = $stmt->fetch();
+            if (!$transfer) $error = "Перевод не найден или неверный секретный код.";
+        } elseif ($search_query !== '') {
+            // Поиск по имени или логину получателя — может быть несколько
+            $stmt = $pdo->prepare("SELECT mt.*, u.name as r_name, u.login as r_login
+                                   FROM money_transfers mt
+                                   JOIN users u ON mt.recipient_id = u.id
+                                   WHERE (u.name LIKE :q OR u.login LIKE :q) AND mt.status = 'paid'
+                                   ORDER BY mt.created_at DESC");
+            $stmt->execute(['q' => "%$search_query%"]);
+            $transfers = $stmt->fetchAll();
+            if (!$transfers) $error = "Активных переводов для данного пользователя не найдено.";
+        } else {
+            $error = "Введите данные для поиска.";
+        }
+    } catch (Exception $e) {
+        $error = "Ошибка поиска: " . $e->getMessage();
     }
 }
 

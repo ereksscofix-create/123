@@ -78,7 +78,9 @@ try {
         'base_cost' => "DECIMAL(10,2) DEFAULT 0.00",
         'cod_fee' => "DECIMAL(10,2) DEFAULT 0.00",
         'dv_fee' => "DECIMAL(10,2) DEFAULT 0.00",
-        'inv_fee' => "DECIMAL(10,2) DEFAULT 0.00"
+        'inv_fee' => "DECIMAL(10,2) DEFAULT 0.00",
+        'stored_at' => "TIMESTAMP NULL DEFAULT NULL",
+        'storage_notified' => "TINYINT(1) DEFAULT 0"
     ];
 
     foreach($to_add as $col => $def) {
