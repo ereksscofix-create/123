@@ -129,6 +129,9 @@ include __DIR__ . '/header.php';
                                 <?php if($st === 'paid'): ?>
                                     <a href="transfer_issue.php" class="btn btn-success btn-sm rounded-pill fw-bold ms-1">ВЫДАТЬ</a>
                                 <?php endif; ?>
+                                <a href="javascript:void(0)" onclick="confDel(<?php echo $t['id']; ?>, '<?php echo e($t['transfer_code']); ?>')" class="btn btn-link text-danger p-0 ms-2" title="Удалить">
+                                    <i class="bi bi-trash3 fs-5"></i>
+                                </a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -143,5 +146,13 @@ include __DIR__ . '/header.php';
 <div class="text-center mt-4">
     <a href="dashboard.php" class="btn btn-link text-muted">Назад в дашборд</a>
 </div>
+
+<script>
+function confDel(id, code) {
+    if (confirm('ВНИМАНИЕ! Перевод ' + code + ' будет полностью удален из базы. Продолжить?')) {
+        window.location.href = 'transfer_delete.php?id=' + id;
+    }
+}
+</script>
 
 <?php include __DIR__ . '/footer.php'; ?>
