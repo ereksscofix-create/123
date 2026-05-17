@@ -51,24 +51,57 @@ include __DIR__ . '/header.php';
                 <div class="receipt-row border-bottom mb-2 pb-2"><span>ТИП:</span> <strong>ОПЛАТА (<?php echo e($parcel['payment_method'] ?: 'Карта'); ?>)</strong></div>
 
                 <div class="receipt-row"><span>ОТПРАВИТЕЛЬ:</span> <strong><?php echo e($parcel['s_name'] ?: $parcel['s_login']); ?></strong></div>
-                <div class="receipt-row border-bottom mb-2 pb-2"><span>ПОЛУЧАТЕЛЬ:</span> <strong><?php echo e($parcel['r_name'] ?: $parcel['r_login']); ?></strong></div>
+                <div class="receipt-row border-bottom mb-3 pb-2"><span>ПОЛУЧАТЕЛЬ:</span> <strong><?php echo e($parcel['r_name'] ?: $parcel['r_login']); ?></strong></div>
 
-                <div class="receipt-row border-top mt-3 pt-2"><span>ОСНОВНОЙ ТАРИФ:</span> <strong><?php echo number_format($parcel['base_cost'] ?: $parcel['cost'], 2); ?> BYN</strong></div>
-                <?php if($parcel['cod_fee'] > 0): ?>
-                    <div class="receipt-row"><span>СБОР ЗА НАЛ. ПЛАТЕЖ:</span> <strong><?php echo number_format($parcel['cod_fee'], 2); ?> BYN</strong></div>
-                <?php endif; ?>
-                <?php if($parcel['dv_fee'] > 0): ?>
-                    <div class="receipt-row"><span>СБОР ЗА ЦЕННОСТЬ:</span> <strong><?php echo number_format($parcel['dv_fee'], 2); ?> BYN</strong></div>
-                <?php endif; ?>
-                <?php if($parcel['inv_fee'] > 0): ?>
-                    <div class="receipt-row"><span>СБОР ЗА ОПИСЬ:</span> <strong><?php echo number_format($parcel['inv_fee'], 2); ?> BYN</strong></div>
+                <div class="mb-3">
+                    <div class="small fw-bold text-uppercase mb-2 border-bottom pb-1">Позиции чека:</div>
+                    <table class="w-100 x-small" style="font-size: 12px; border-collapse: collapse;">
+                        <tr class="border-bottom">
+                            <th class="text-start py-1">Услуга</th>
+                            <th class="text-end py-1">Сумма</th>
+                        </tr>
+                        <tr>
+                            <td class="py-1">Доставка (Тариф: <?php echo e($parcel['tariff']); ?>, <?php echo number_format($parcel['weight'], 3); ?> кг)</td>
+                            <td class="text-end py-1"><?php echo number_format($parcel['base_cost'] ?: $parcel['cost'], 2); ?></td>
+                        </tr>
+                        <?php if($parcel['cod_fee'] > 0): ?>
+                        <tr>
+                            <td class="py-1">Комиссия за наложенный платеж</td>
+                            <td class="text-end py-1"><?php echo number_format($parcel['cod_fee'], 2); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if($parcel['dv_fee'] > 0): ?>
+                        <tr>
+                            <td class="py-1">Страхование (Объявл. ценность)</td>
+                            <td class="text-end py-1"><?php echo number_format($parcel['dv_fee'], 2); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if($parcel['inv_fee'] > 0): ?>
+                        <tr>
+                            <td class="py-1">Оформление описи вложения</td>
+                            <td class="text-end py-1"><?php echo number_format($parcel['inv_fee'], 2); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if($parcel['is_cod_paid']): ?>
+                        <tr class="border-top">
+                            <td class="py-1 fw-bold">Сумма наложенного платежа</td>
+                            <td class="text-end py-1 fw-bold"><?php echo number_format($parcel['cod'], 2); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                    </table>
+                </div>
+
+                <?php if(!empty($parcel['inventory'])): ?>
+                <div class="mb-3 p-2 bg-light rounded" style="font-size: 11px;">
+                    <div class="fw-bold mb-1">ОПИСЬ ВЛОЖЕНИЯ:</div>
+                    <div><?php echo nl2br(e($parcel['inventory'])); ?></div>
+                </div>
                 <?php endif; ?>
 
-                <?php if($parcel['is_cod_paid']): ?>
-                    <div class="receipt-row border-top mt-2 pt-2"><span>СУММА НАЛОЖ. ПЛАТ.:</span> <strong><?php echo number_format($parcel['cod'], 2); ?> BYN</strong></div>
-                <?php endif; ?>
-
-                <div class="receipt-row border-top mt-2 pt-2"><span>ИТОГО К ОПЛАТЕ:</span> <span class="h4 mb-0 fw-bold"><?php echo number_format($parcel['cost'] + ($parcel['is_cod_paid'] ? $parcel['cod'] : 0), 2); ?> BYN</span></div>
+                <div class="receipt-row border-top mt-2 pt-2 fw-bold" style="font-size: 18px;">
+                    <span>ИТОГО:</span>
+                    <span><?php echo number_format($parcel['cost'] + ($parcel['is_cod_paid'] ? $parcel['cod'] : 0), 2); ?> BYN</span>
+                </div>
 
                 <div class="text-center mt-5">
                     <div class="mb-3 small opacity-75">СПАСИБО, ЧТО ВЫБИРАЕТЕ НАС!</div>
