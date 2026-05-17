@@ -190,8 +190,8 @@ include __DIR__ . '/header.php';
                     <a href="transfer_add.php" class="btn btn-outline-primary border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
                         <i class="bi bi-send-fill me-2"></i>Перевод (отправить)
                     </a>
-                    <a href="transfer_issue.php" class="btn btn-outline-primary border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
-                        <i class="bi bi-cash-stack me-2"></i>Перевод (выдать)
+                    <a href="transfer_list.php" class="btn btn-outline-primary border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
+                        <i class="bi bi-cash-stack me-2"></i>Переводы (упр.)
                     </a>
                     <a href="parcel_cod_refund.php" class="btn btn-outline-danger border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
                         <i class="bi bi-arrow-counterclockwise me-2"></i>Возврат нал.плат.
