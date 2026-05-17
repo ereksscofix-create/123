@@ -47,6 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $inv_fee = ($inventory !== '') ? $base_cost * 0.02 : 0; // Опись 2% от тарифа
     $cost = $base_cost + $cod_fee + $dv_fee + $inv_fee;
 
+    $sender_pvz = $_POST['sender_pvz'] ?? '';
+
     if ($sender_id <= 0 || $recipient_id <= 0 || empty($address)) {
         $error = "Пожалуйста, заполните все обязательные поля.";
     } else {
@@ -61,13 +63,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Попытка вставить со всеми новыми полями
                 try {
                     $stmt = $pdo->prepare("INSERT INTO parcels
-                        (track_code, sender_id, recipient_id, sender_address, address, pickup_point, weight, cost, tariff, cod, declared_value, inventory, pay_on_delivery)
-                        VALUES (:track, :sid, :rid, :saddr, :addr, :pvz, :w, :c, :t, :cod, :dv, :inv, :pod)");
+                        (track_code, sender_id, recipient_id, sender_address, sender_pvz, address, pickup_point, weight, cost, base_cost, cod_fee, dv_fee, inv_fee, tariff, cod, declared_value, inventory, pay_on_delivery)
+                        VALUES (:track, :sid, :rid, :saddr, :spvz, :addr, :pvz, :w, :c, :bc, :cf, :df, :if, :t, :cod, :dv, :inv, :pod)");
 
                     $stmt->execute([
                         'track' => $track, 'sid' => $sender_id, 'rid' => $recipient_id,
-                        'saddr' => $sender_address, 'addr' => $address, 'pvz' => $pickup_point, 'w' => $weight,
-                        'c' => $cost, 't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'inv' => $inventory, 'pod' => $pay_on_delivery
+                        'saddr' => $sender_address, 'spvz' => $sender_pvz, 'addr' => $address, 'pvz' => $pickup_point, 'w' => $weight,
+                        'c' => $cost, 'bc' => $base_cost, 'cf' => $cod_fee, 'df' => $dv_fee, 'if' => $inv_fee,
+                        't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'inv' => $inventory, 'pod' => $pay_on_delivery
                     ]);
                 } catch (PDOException $e) {
                     // Режим совместимости (если колонки еще не добавлены)
@@ -175,12 +178,18 @@ include __DIR__ . '/header.php';
                     </div>
 
                     <div class="col-md-6">
-                        <label class="form-label fw-bold text-muted small text-uppercase">Адрес отправления</label>
-                        <textarea name="sender_address" class="form-control rounded-3" rows="2" placeholder="Откуда (необязательно)"></textarea>
+                        <label class="form-label fw-bold text-muted small text-uppercase">Откуда (ПВЗ / Адрес)</label>
+                        <div class="input-group">
+                            <select name="sender_pvz" class="form-select border-primary" style="max-width: 150px;">
+                                <option value="">Адрес</option>
+                                <option value="Минск_ЕН_Main">Минск_ЕН</option>
+                            </select>
+                            <textarea name="sender_address" class="form-control rounded-end-3" rows="1" placeholder="Улица, дом..."></textarea>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold text-muted small text-uppercase">Тип доставки / ПВЗ</label>
-                        <select name="pickup_point" class="form-select form-select-lg rounded-3" onchange="toggleAddress(this.value)">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Куда (ПВЗ / Адрес)</label>
+                        <select name="pickup_point" class="form-select form-select-lg rounded-3 border-primary" onchange="toggleAddress(this.value)">
                             <option value="">Курьерская (по адресу)</option>
                             <option value="Минск_ЕН_Main">ПВЗ: Минск_ЕН_Main</option>
                         </select>

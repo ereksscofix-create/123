@@ -59,6 +59,7 @@ try {
 
     $to_add = [
         'sender_address' => "TEXT DEFAULT NULL AFTER recipient_id",
+        'sender_pvz' => "VARCHAR(100) DEFAULT NULL AFTER sender_address",
         'inventory' => "TEXT DEFAULT NULL AFTER declared_value",
         'is_paid' => "TINYINT(1) DEFAULT 0 AFTER inventory",
         'is_cod_paid' => "TINYINT(1) DEFAULT 0 AFTER is_paid",
@@ -69,7 +70,15 @@ try {
         'receipt_no' => "VARCHAR(50) DEFAULT NULL AFTER payment_method",
         'is_return' => "TINYINT(1) DEFAULT 0 AFTER receipt_no",
         'pickup_point' => "VARCHAR(100) DEFAULT NULL AFTER is_return",
-        'shelf' => "INT(11) DEFAULT NULL AFTER pickup_point"
+        'shelf' => "INT(11) DEFAULT NULL AFTER pickup_point",
+        'is_deleted_by_sender' => "TINYINT(1) DEFAULT 0",
+        'is_deleted_by_recipient' => "TINYINT(1) DEFAULT 0",
+        'refund_code' => "VARCHAR(20) DEFAULT NULL",
+        'cod_refund_issued' => "TINYINT(1) DEFAULT 0",
+        'base_cost' => "DECIMAL(10,2) DEFAULT 0.00",
+        'cod_fee' => "DECIMAL(10,2) DEFAULT 0.00",
+        'dv_fee' => "DECIMAL(10,2) DEFAULT 0.00",
+        'inv_fee' => "DECIMAL(10,2) DEFAULT 0.00"
     ];
 
     foreach($to_add as $col => $def) {

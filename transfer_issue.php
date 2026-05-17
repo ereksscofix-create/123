@@ -16,11 +16,24 @@ $error = '';
 $transfer = null;
 
 if (isset($_POST['search'])) {
-    $code = trim($_POST['transfer_code']);
-    $secret = trim($_POST['secret_code']);
-    $stmt = $pdo->prepare("SELECT * FROM money_transfers WHERE transfer_code = :code AND secret_code = :secret AND status = 'paid' LIMIT 1");
-    $stmt->execute(['code' => $code, 'secret' => $secret]);
-    $transfer = $stmt->fetch();
+    $code = trim($_POST['transfer_code'] ?? '');
+    $secret = trim($_POST['secret_code'] ?? '');
+    $search_query = trim($_POST['search_query'] ?? '');
+
+    if ($code !== '' && $secret !== '') {
+        $stmt = $pdo->prepare("SELECT * FROM money_transfers WHERE transfer_code = :code AND secret_code = :secret AND status = 'paid' LIMIT 1");
+        $stmt->execute(['code' => $code, 'secret' => $secret]);
+        $transfer = $stmt->fetch();
+    } elseif ($search_query !== '') {
+        // Поиск по имени или логину получателя
+        $stmt = $pdo->prepare("SELECT mt.* FROM money_transfers mt
+                               JOIN users u ON mt.recipient_id = u.id
+                               WHERE (u.name LIKE :q OR u.login LIKE :q) AND mt.status = 'paid'
+                               ORDER BY mt.created_at DESC LIMIT 1");
+        $stmt->execute(['q' => "%$search_query%"]);
+        $transfer = $stmt->fetch();
+    }
+
     if (!$transfer) $error = "Перевод не найден, неверный код или уже выдан.";
 }
 
@@ -57,15 +70,26 @@ include __DIR__ . '/header.php';
 
                 <?php if (!$transfer): ?>
                 <form method="post">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Номер перевода</label>
-                        <input type="text" name="transfer_code" class="form-control form-control-lg" required placeholder="TR000000BY">
+                    <div class="p-3 bg-light rounded-4 mb-4">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-qr-code-scan me-2"></i>По коду и секрету</h6>
+                        <div class="mb-3">
+                            <input type="text" name="transfer_code" class="form-control" placeholder="Номер TR000000BY">
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" name="secret_code" class="form-control" placeholder="Секретный код XXXX">
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Секретный код из уведомления</label>
-                        <input type="text" name="secret_code" class="form-control form-control-lg" required placeholder="XXXX">
+
+                    <div class="text-center my-3 text-muted small">— ИЛИ —</div>
+
+                    <div class="p-3 bg-light rounded-4 mb-4">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-person-badge me-2"></i>По имени или логину</h6>
+                        <input type="text" name="search_query" class="form-control" placeholder="Имя или логин получателя">
                     </div>
-                    <button type="submit" name="search" class="btn btn-success btn-lg w-100 rounded-pill">НАЙТИ ПЕРЕВОД</button>
+
+                    <button type="submit" name="search" class="btn btn-success btn-lg w-100 rounded-pill shadow-sm py-3 fw-bold">
+                        <i class="bi bi-search me-2"></i>НАЙТИ ПЕРЕВОД
+                    </button>
                 </form>
                 <?php else: ?>
                     <div class="p-4 bg-light rounded-4 text-center mb-4">

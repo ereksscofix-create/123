@@ -108,17 +108,23 @@ $inv_fee = ($parcel['inventory'] !== '' && $parcel['inventory'] !== null) ? $bas
       $s_name = htmlspecialchars($parcel['sender_name'] ?: $parcel['sender_login'] ?: 'ID '.$parcel['sender_id']);
       $r_name = htmlspecialchars($parcel['recipient_name'] ?: $parcel['recipient_login'] ?: 'ID '.$parcel['recipient_id']);
       $s_addr = htmlspecialchars($parcel['sender_address'] ?: 'Не указан');
+    if (!empty($parcel['sender_pvz'])) $s_addr = "<b>" . htmlspecialchars($parcel['sender_pvz']) . "</b>, " . $s_addr;
+
       $r_addr = htmlspecialchars($parcel['address'] ?: 'Не указан');
+    if (!empty($parcel['pickup_point'])) $r_addr = "<b>" . htmlspecialchars($parcel['pickup_point']) . "</b>, " . $r_addr;
+
       if($is_return) { $from=$r_name; $to=$s_name; $fa=$r_addr; $ta=$s_addr; } else { $from=$s_name; $to=$r_name; $fa=$s_addr; $ta=$r_addr; }
     ?>
-    <tr><td class="bold" style="width:100px">ОТ КУДА:</td><td><?php echo $from; ?><br><span style="font-size:11px"><?php echo $fa; ?></span></td></tr>
+    <tr><td class="bold" style="width:100px">ОТКУДА:</td><td><?php echo $from; ?><br><span style="font-size:11px"><?php echo $fa; ?></span></td></tr>
     <tr><td class="bold">КУДА:</td><td><?php echo $to; ?><br><span style="font-size:11px"><?php echo $ta; ?></span></td></tr>
   </table>
 
-  <div class="bold" style="font-size:10px;margin-top:10px;text-transform:uppercase">Опись вложения:</div>
-  <div class="inventory-box">
-    <?php echo nl2br(htmlspecialchars($parcel['inventory'] ?: 'Опись не заполнена.')); ?>
-  </div>
+  <?php if (!empty($parcel['inventory'])): ?>
+    <div class="bold" style="font-size:10px;margin-top:10px;text-transform:uppercase">Опись вложения:</div>
+    <div class="inventory-box">
+      <?php echo nl2br(htmlspecialchars($parcel['inventory'])); ?>
+    </div>
+  <?php endif; ?>
 
   <div class="fees-grid">
     <div>ВЕС: <span class="bold"><?php echo number_format($parcel['weight'],3); ?> КГ</span></div>

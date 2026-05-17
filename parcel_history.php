@@ -119,7 +119,21 @@ include __DIR__ . '/header.php';
                                         </div>
                                     </div>
                                     <?php if($idx === 0): ?>
-                                        <div class="small text-primary fw-bold mb-0 mt-1"><i class="bi bi-geo-alt-fill me-1"></i> Текущее местоположение</div>
+                                        <div class="small text-primary fw-bold mb-0 mt-1">
+                                            <i class="bi bi-geo-alt-fill me-1"></i>
+                                            <?php
+                                            if (preg_match('/\[(.*?)\]/', $st['status_text'], $m)) {
+                                                // Проверяем, не дата ли это (формат ДД.ММ.ГГГГ)
+                                                if (strpos($m[1], '.') === false) {
+                                                    echo e($m[1]);
+                                                } else {
+                                                    echo "В пути";
+                                                }
+                                            } else {
+                                                echo "В пути";
+                                            }
+                                            ?>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                             </div>

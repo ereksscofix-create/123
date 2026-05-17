@@ -64,8 +64,10 @@ try {
     $where = [];
 
     if ($role !== 'worker') {
-        // ВАЖНО: Видим свои (отправил/получил) И те, на которые подписались
-        $where[] = "(p.sender_id = :uid_sender OR p.recipient_id = :uid_recipient OR EXISTS(SELECT 1 FROM parcel_followers WHERE user_id = :uid_follow AND parcel_id = p.id))";
+        // ВАЖНО: Видим свои (отправил/получил) И те, на которые подписались. Прячем удаленные.
+        $where[] = "((p.sender_id = :uid_sender AND p.is_deleted_by_sender = 0)
+                     OR (p.recipient_id = :uid_recipient AND p.is_deleted_by_recipient = 0)
+                     OR EXISTS(SELECT 1 FROM parcel_followers WHERE user_id = :uid_follow AND parcel_id = p.id))";
         $params['uid_sender'] = $user_id;
         $params['uid_recipient'] = $user_id;
         $params['uid_follow'] = $user_id;

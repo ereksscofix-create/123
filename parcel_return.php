@@ -19,10 +19,21 @@ try {
     if (!$parcel) die("Посылка не найдена.");
 
     // Логика возврата
-    $stmt = $pdo->prepare("UPDATE parcels SET is_return = 1 WHERE id = :id");
-    $stmt->execute(['id' => $id]);
+    $refund_code = '';
+    $refund_issued = 0;
+
+    // Если наложенный платеж был оплачен, но посылку возвращают, генерируем код возврата денег
+    if ($parcel['is_cod_paid'] && !$parcel['is_cod_issued'] && !$parcel['cod_refund_issued']) {
+        $refund_code = 'REF-' . rand(1000, 9999) . '-' . rand(1000, 9999);
+    }
+
+    $stmt = $pdo->prepare("UPDATE parcels SET is_return = 1, refund_code = :rc WHERE id = :id");
+    $stmt->execute(['rc' => $refund_code, 'id' => $id]);
 
     $status_text = "Оформлен возврат (Оплачено) [" . date('d.m.Y H:i') . "] (Оператор: " . ($user['name'] ?: $user['login']) . ")";
+    if ($refund_code) {
+        $status_text .= " | Сформирован код возврата наложенного платежа: " . $refund_code;
+    }
     $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
     $stmt->execute(['pid' => $id, 'txt' => $status_text]);
 

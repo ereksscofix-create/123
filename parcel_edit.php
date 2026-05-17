@@ -43,22 +43,35 @@ try {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sender_address = trim($_POST['sender_address'] ?? '');
+    $sender_pvz = trim($_POST['sender_pvz'] ?? '');
     $address = trim($_POST['address'] ?? '');
+    $pickup_point = trim($_POST['pickup_point'] ?? '');
     $weight = (float)$_POST['weight'];
     $tariff_key = $_POST['tariff'] ?? 'ST';
+    $inventory = trim($_POST['inventory'] ?? '');
 
     $multiplier = $rates[$tariff_key]['rate'] ?? 10;
-    $cost = $weight * $multiplier;
+    $base_cost = $weight * $multiplier;
 
     $cod = (float)$_POST['cod'];
     $declared_value = (float)$_POST['declared_value'];
 
+    $cod_fee = $cod * 0.015;
+    $dv_fee = $declared_value * 0.017;
+    $inv_fee = ($inventory !== '') ? $base_cost * 0.02 : 0;
+    $cost = $base_cost + $cod_fee + $dv_fee + $inv_fee;
+
     try {
         try {
-            $stmt = $pdo->prepare("UPDATE parcels SET sender_address = :saddr, address = :addr, weight = :w, cost = :c, tariff = :t, cod = :cod, declared_value = :dv WHERE id = :id");
+            $stmt = $pdo->prepare("UPDATE parcels SET
+                sender_address = :saddr, sender_pvz = :spvz, address = :addr, pickup_point = :pvz,
+                weight = :w, cost = :c, base_cost = :bc, cod_fee = :cf, dv_fee = :df, inv_fee = :if,
+                tariff = :t, cod = :cod, declared_value = :dv, inventory = :inv
+                WHERE id = :id");
             $stmt->execute([
-                'saddr' => $sender_address, 'addr' => $address, 'w' => $weight,
-                'c' => $cost, 't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'id' => $id
+                'saddr' => $sender_address, 'spvz' => $sender_pvz, 'addr' => $address, 'pvz' => $pickup_point,
+                'w' => $weight, 'c' => $cost, 'bc' => $base_cost, 'cf' => $cod_fee, 'df' => $dv_fee, 'if' => $inv_fee,
+                't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'inv' => $inventory, 'id' => $id
             ]);
         } catch (PDOException $e) {
             if (strpos($e->getMessage(), 'sender_address') !== false) {
@@ -116,12 +129,29 @@ include __DIR__ . '/header.php';
                     </div>
 
                     <div class="col-md-6">
-                        <label class="form-label fw-bold text-muted small text-uppercase">Адрес отправления</label>
-                        <textarea name="sender_address" class="form-control rounded-3" rows="3"><?php echo e($parcel['sender_address'] ?? ''); ?></textarea>
+                        <label class="form-label fw-bold text-muted small text-uppercase">Откуда (ПВЗ / Адрес)</label>
+                        <div class="input-group">
+                            <select name="sender_pvz" class="form-select border-warning" style="max-width: 120px;">
+                                <option value="">Адрес</option>
+                                <option value="Минск_ЕН_Main" <?php echo ($parcel['sender_pvz'] ?? '') === 'Минск_ЕН_Main' ? 'selected' : ''; ?>>Минск_ЕН</option>
+                            </select>
+                            <textarea name="sender_address" class="form-control rounded-end-3" rows="1"><?php echo e($parcel['sender_address'] ?? ''); ?></textarea>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold text-muted small text-uppercase">Адрес доставки</label>
-                        <textarea name="address" class="form-control rounded-3" rows="3" required><?php echo e($parcel['address']); ?></textarea>
+                        <label class="form-label fw-bold text-muted small text-uppercase">Куда (ПВЗ / Адрес)</label>
+                        <div class="input-group">
+                            <select name="pickup_point" class="form-select border-warning" style="max-width: 120px;">
+                                <option value="">Адрес</option>
+                                <option value="Минск_ЕН_Main" <?php echo ($parcel['pickup_point'] ?? '') === 'Минск_ЕН_Main' ? 'selected' : ''; ?>>Минск_ЕН</option>
+                            </select>
+                            <textarea name="address" class="form-control rounded-end-3" rows="1" required><?php echo e($parcel['address']); ?></textarea>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Опись вложения (2%)</label>
+                        <textarea name="inventory" class="form-control rounded-3" rows="2"><?php echo e($parcel['inventory'] ?? ''); ?></textarea>
                     </div>
 
                     <div class="col-md-6">
