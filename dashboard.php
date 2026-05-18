@@ -374,6 +374,9 @@ include __DIR__ . '/header.php';
                                                 <?php if ($role === 'worker' && $p['pickup_point'] && !$p['shelf']): ?>
                                                     <li><a class="dropdown-item py-2 fw-bold text-primary" href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>"><i class="bi bi-download me-2"></i>ПРИНЯТЬ В ПВЗ</a></li>
                                                 <?php endif; ?>
+                                                <?php if ($role !== 'worker' && mb_stripos($p['last_status'], 'ожидает') !== false): ?>
+                                                    <li><a class="dropdown-item py-2 fw-bold text-success" href="javascript:void(0)" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-2"></i>КОД ПОЛУЧЕНИЯ</a></li>
+                                                <?php endif; ?>
                                                 <?php if ($role === 'worker' && $p['is_paid'] && !$p['is_refunded']): ?>
                                                     <li><a class="dropdown-item py-2 text-danger" href="parcel_refund.php?id=<?php echo $p['id']; ?>"><i class="bi bi-arrow-counterclockwise me-2"></i>ВОЗВРАТ ДЕНЕГ</a></li>
                                                 <?php endif; ?>
@@ -463,6 +466,9 @@ include __DIR__ . '/header.php';
                                 <?php endif; ?>
                                 <?php if ($role === 'worker' && $p['pickup_point'] && !$p['shelf']): ?>
                                     <a href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>" class="btn btn-primary btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-download me-1"></i>ПРИНЯТЬ В ПВЗ</a>
+                                <?php endif; ?>
+                                <?php if ($role !== 'worker' && mb_stripos($p['last_status'], 'ожидает') !== false): ?>
+                                    <button class="btn btn-success btn-sm w-100 rounded-pill fw-bold mb-2" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-1"></i>КОД ПОЛУЧЕНИЯ</button>
                                 <?php endif; ?>
                                 <div class="d-flex gap-2">
                                     <div class="dropdown">
@@ -596,7 +602,46 @@ include __DIR__ . '/header.php';
     </div>
 </div>
 
+<!-- Issue QR Modal -->
+<div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0">
+            <div class="modal-body p-5 text-center">
+                <h5 class="fw-bold mb-4">Ваш код для получения</h5>
+                <div id="issue-qr" class="d-flex justify-content-center mb-4"></div>
+                <div class="h4 fw-bold text-primary mb-2" id="qr-track"></div>
+                <div class="small text-muted mb-4">Покажите этот код сотруднику ПВЗ</div>
+                <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
+let qrMaker = null;
+function showIssueQR(track, id) {
+    document.getElementById('qr-track').textContent = track;
+    const qrContainer = document.getElementById('issue-qr');
+    qrContainer.innerHTML = '';
+
+    // Получаем код из API или генерируем на месте (для простоты - запрос к parcel_codes)
+    fetch('functions.php?action=get_issue_code&id=' + id)
+        .then(r => r.json())
+        .then(data => {
+            if (data.code) {
+                new QRCode(qrContainer, {
+                    text: track + "|" + data.code,
+                    width: 200,
+                    height: 200
+                });
+                new bootstrap.Modal(document.getElementById('qrModal')).show();
+            } else {
+                alert('Ошибка получения кода. Обратитесь в поддержку.');
+            }
+        });
+}
+
 function confDel(id, track) {
     if (confirm('ВНИМАНИЕ! Посылка ' + track + ' будет полностью удалена. Продолжить?')) {
         window.location.href = 'parcel_delete.php?id=' + id;

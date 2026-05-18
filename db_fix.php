@@ -1,9 +1,9 @@
 <?php
-// db_fix.php — Автоматическое исправление структуры БД (Версия 4.0 - Финальная)
+// db_fix.php — Автоматическое исправление структуры БД (Версия 7.0)
 require_once __DIR__ . '/config.php';
 
 echo "<style>body{font-family:sans-serif;line-height:1.6;padding:20px;background:#f4f7f6;} .log{background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.1);} .ok{color:green;font-weight:bold;} .err{color:red;font-weight:bold;} .warn{color:orange;font-weight:bold;}</style>";
-echo "<h2>Исправление структуры БД EHPST (Версия 4.0)</h2>";
+echo "<h2>Исправление структуры БД EHPST (Версия 7.0)</h2>";
 echo "<div class='log'>";
 
 try {
@@ -82,6 +82,7 @@ try {
         'stored_at' => "TIMESTAMP NULL DEFAULT NULL",
         'storage_notified' => "TINYINT(1) DEFAULT 0",
         'return_fee' => "DECIMAL(10,2) DEFAULT 0.00",
+        'edit_fee' => "DECIMAL(10,2) DEFAULT 0.00",
         'loyalty_earned' => "DECIMAL(10,2) DEFAULT 0.00",
         'loyalty_spent' => "DECIMAL(10,2) DEFAULT 0.00"
     ];
@@ -127,6 +128,10 @@ try {
         if ($tname === 'money_transfers') {
             $s = $pdo->query("DESCRIBE money_transfers");
             $mt_cols = $s->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('issued_at', $mt_cols)) {
+                $pdo->exec("ALTER TABLE money_transfers ADD COLUMN issued_at TIMESTAMP NULL DEFAULT NULL");
+                echo "<span class='ok'>issued_at+ </span>";
+            }
             if (!in_array('secret_code', $mt_cols)) {
                 $pdo->exec("ALTER TABLE money_transfers ADD COLUMN secret_code VARCHAR(10) DEFAULT NULL AFTER transfer_code");
                 echo "<span class='ok'>secret_code+ </span>";

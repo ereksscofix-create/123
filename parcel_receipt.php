@@ -82,6 +82,12 @@ include __DIR__ . '/header.php';
                             <td class="text-end py-1"><?php echo number_format($parcel['inv_fee'], 2); ?></td>
                         </tr>
                         <?php endif; ?>
+                        <?php if(($parcel['edit_fee'] ?? 0) > 0): ?>
+                        <tr>
+                            <td class="py-1">Сбор за изменение данных (4%)</td>
+                            <td class="text-end py-1"><?php echo number_format($parcel['edit_fee'], 2); ?></td>
+                        </tr>
+                        <?php endif; ?>
                         <?php if($parcel['is_cod_paid']): ?>
                         <tr class="border-top">
                             <td class="py-1 fw-bold">Сумма наложенного платежа</td>
@@ -89,27 +95,15 @@ include __DIR__ . '/header.php';
                         </tr>
                         <?php endif; ?>
                         <?php if($parcel['loyalty_spent'] > 0): ?>
-                        <tr class="text-danger">
+                        <tr class="text-danger border-top">
                             <td class="py-1 fw-bold">Списание бонусов</td>
-                            <td class="text-end py-1 fw-bold">-<?php echo number_format($parcel['loyalty_spent'], 2); ?></td>
+                            <td class="text-end py-1 fw-bold">-<?php echo number_format($parcel['loyalty_spent'], 2); ?> Б.</td>
                         </tr>
                         <?php endif; ?>
                         <?php if($parcel['loyalty_earned'] > 0): ?>
                         <tr class="text-success">
                             <td class="py-1 fw-bold">Начислено бонусов</td>
-                            <td class="text-end py-1 fw-bold">+<?php echo number_format($parcel['loyalty_earned'], 2); ?></td>
-                        </tr>
-                        <?php endif; ?>
-                        <?php if($parcel['loyalty_spent'] > 0): ?>
-                        <tr class="text-danger">
-                            <td class="py-1 fw-bold">Списание бонусов</td>
-                            <td class="text-end py-1 fw-bold">-<?php echo number_format($parcel['loyalty_spent'], 0); ?></td>
-                        </tr>
-                        <?php endif; ?>
-                        <?php if($parcel['loyalty_earned'] > 0): ?>
-                        <tr class="text-success">
-                            <td class="py-1 fw-bold">Начислено бонусов</td>
-                            <td class="text-end py-1 fw-bold">+<?php echo number_format($parcel['loyalty_earned'], 0); ?></td>
+                            <td class="text-end py-1 fw-bold">+<?php echo number_format($parcel['loyalty_earned'], 2); ?> Б.</td>
                         </tr>
                         <?php endif; ?>
                     </table>
@@ -136,7 +130,7 @@ include __DIR__ . '/header.php';
                 ?>
                 <div class="receipt-row small text-muted border-top mt-2 pt-2">
                     <span>ОСТАТОК БОНУСОВ:</span>
-                    <span><?php echo number_format($l_balance, 0); ?> Б.</span>
+                    <span><?php echo number_format($l_balance, 2); ?> Б.</span>
                 </div>
                 <?php endif; ?>
 

@@ -28,6 +28,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$parcel) {
             $error = "Посылка с таким трек-кодом не найдена.";
         } else {
+            // Проверка: Не выдана ли уже?
+            $stmt_check = $pdo->prepare("SELECT id FROM parcel_status WHERE parcel_id = :pid AND (status_text LIKE '%выдана%' OR status_text LIKE '%доставлено%') LIMIT 1");
+            $stmt_check->execute(['pid' => $parcel['id']]);
+            if ($stmt_check->fetch()) {
+                $error = "Эта посылка уже была выдана ранее.";
+                $parcel = null;
+            }
+        }
+
+        if ($parcel) {
             if ($parcel['pickup_point'] && $parcel['shelf']) {
                 $success = "<div class='p-3 bg-primary text-white rounded-3 mb-3'>📦 МЕСТО ХРАНЕНИЯ (ПОЛКА): <span class='display-6 fw-bold ms-2'>{$parcel['shelf']}</span></div>";
             }
@@ -99,30 +109,38 @@ include __DIR__ . '/header.php';
 
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-bold"><i class="bi bi-box-arrow-right text-success me-2"></i>Выдача посылки</h5>
+        <div class="card shadow-sm rounded-4 border-0">
+            <div class="card-header bg-white py-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-box-arrow-right text-success me-2"></i>Выдача посылки</h5>
+                    <button class="btn btn-outline-primary btn-sm rounded-pill" onclick="startScanner()"><i class="bi bi-qr-code-scan me-1"></i>Сканировать</button>
+                </div>
             </div>
             <div class="card-body p-4">
                 <?php if ($success): ?>
-                    <div class="alert alert-success"><?php echo $success; ?></div>
+                    <div class="alert alert-success rounded-4 border-0 shadow-sm p-4 mb-4"><?php echo $success; ?></div>
                 <?php endif; ?>
                 <?php if ($error): ?>
-                    <div class="alert alert-danger"><?php echo $error; ?></div>
+                    <div class="alert alert-danger rounded-4 border-0 shadow-sm p-4 mb-4"><?php echo $error; ?></div>
                 <?php endif; ?>
 
-                <form method="post">
+                <div id="scanner-container" style="display:none;" class="mb-4 text-center">
+                    <div id="reader" style="width:100%; max-width:400px; margin:0 auto; border-radius: 15px; overflow: hidden;"></div>
+                    <button class="btn btn-light mt-2 rounded-pill" onclick="stopScanner()">Отмена</button>
+                </div>
+
+                <form method="post" id="issueForm">
                     <div class="mb-3">
-                        <label class="form-label">Трек-код посылки</label>
-                        <input type="text" name="track" class="form-control form-control-lg" required placeholder="Напр. EP123456789BY" autofocus>
+                        <label class="form-label fw-bold small text-uppercase">Трек-код посылки</label>
+                        <input type="text" name="track" id="trackInput" class="form-control form-control-lg rounded-3" required placeholder="EP123456789BY" autofocus>
                     </div>
 
                     <hr class="my-4">
                     <p class="text-muted small">Подтвердите личность одним из способов:</p>
 
                     <div class="mb-3">
-                        <label class="form-label">Код из СМС / приложения</label>
-                        <input type="text" name="code" class="form-control" placeholder="4-значный код">
+                        <label class="form-label fw-bold small text-uppercase">Код из СМС / приложения</label>
+                        <input type="text" name="code" id="codeInput" class="form-control form-control-lg rounded-3" placeholder="4-значный код">
                     </div>
 
                     <div class="mb-3">
@@ -145,4 +163,38 @@ include __DIR__ . '/header.php';
     </div>
 </div>
 
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+let html5QrCode = null;
+
+function startScanner() {
+    document.getElementById('scanner-container').style.display = 'block';
+    html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+}
+
+function onScanSuccess(decodedText, decodedResult) {
+    stopScanner();
+    // Формат QR: TRACK|CODE
+    if (decodedText.includes('|')) {
+        const parts = decodedText.split('|');
+        document.getElementById('trackInput').value = parts[0];
+        document.getElementById('codeInput').value = parts[1];
+        // Автоматическая отправка формы после успешного скана QR
+        document.getElementById('issueForm').submit();
+    } else {
+        document.getElementById('trackInput').value = decodedText;
+    }
+}
+
+function stopScanner() {
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            document.getElementById('scanner-container').style.display = 'none';
+        });
+    }
+}
+</script>
 <?php include __DIR__ . '/footer.php'; ?>

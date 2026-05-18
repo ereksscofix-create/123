@@ -42,7 +42,7 @@ if (isset($_POST['issue']) && isset($_POST['id'])) {
         $stmt->execute(['id' => $tid]);
         $amt = (float)$stmt->fetchColumn();
 
-        $stmt = $pdo->prepare("UPDATE money_transfers SET status = 'refunded' WHERE id = :id");
+        $stmt = $pdo->prepare("UPDATE money_transfers SET status = 'refunded', issued_at = NOW() WHERE id = :id");
         $stmt->execute(['id' => $tid]);
 
         // Логируем расход (Выплата из кассы)

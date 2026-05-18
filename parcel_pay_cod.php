@@ -56,6 +56,7 @@ if (isset($_POST['send_code'])) {
 }
 
 if (isset($_POST['pay'])) {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) die("CSRF validation failed.");
     $method = $_POST['method'] ?? 'Карта';
     $receipt = 'CD' . date('ymd') . rand(1000, 9999);
     $points_spent = (float)($_POST['points_spent'] ?? 0);
@@ -138,6 +139,7 @@ include __DIR__ . '/header.php';
                 </div>
 
                 <form method="post" id="unifiedCodPayForm">
+                    <?php echo csrfInput(); ?>
                     <!-- Программа лояльности -->
                     <div class="mb-4 p-3 bg-light rounded-3 border border-primary border-opacity-10">
                         <label class="form-label fw-bold small text-uppercase"><i class="bi bi-star-fill text-warning me-1"></i>Программа лояльности</label>
@@ -150,7 +152,7 @@ include __DIR__ . '/header.php';
                             <div class="mt-3 p-3 bg-white rounded-3 shadow-sm">
                                 <div class="d-flex justify-content-between">
                                     <span class="small text-muted">Уровень: <b><?php echo strtoupper($loyalty_card['level']); ?></b></span>
-                                    <span class="small text-muted">Баланс: <b><?php echo number_format($loyalty_card['balance'], 0); ?> Б.</b></span>
+                                    <span class="small text-muted">Баланс: <b><?php echo number_format($loyalty_card['balance'], 2); ?> Б.</b></span>
                                 </div>
                                 <input type="hidden" name="card_id" value="<?php echo $loyalty_card['id']; ?>">
 
@@ -158,7 +160,7 @@ include __DIR__ . '/header.php';
                                     <div class="mt-3">
                                         <label class="form-label x-small fw-bold">Списать бонусы?</label>
                                         <div class="input-group input-group-sm">
-                                            <input type="number" name="points_to_spend" class="form-control" max="<?php echo min($loyalty_card['balance'], $parcel['cod']); ?>" placeholder="Сумма списания">
+                                            <input type="number" step="0.01" name="points_to_spend" class="form-control" max="<?php echo min($loyalty_card['balance'], $parcel['cod']); ?>" placeholder="Сумма списания">
                                             <button type="submit" name="send_code" class="btn btn-warning">Получить код</button>
                                         </div>
                                     </div>
@@ -167,7 +169,7 @@ include __DIR__ . '/header.php';
                                         <label class="form-label x-small fw-bold text-success"><?php echo $confirm_required ? 'Код подтверждения отправлен!' : 'Бонусы готовы к списанию'; ?></label>
                                         <input type="hidden" name="points_spent" value="<?php echo $_POST['points_to_spend'] ?? $_POST['points_spent']; ?>">
                                         <input type="text" name="confirm_code" class="form-control form-control-sm" placeholder="Введите код из личного кабинета" required value="<?php echo e($_POST['confirm_code'] ?? ''); ?>">
-                                        <div class="mt-2 small">К списанию: <b><?php echo $_POST['points_to_spend'] ?? $_POST['points_spent']; ?> Б.</b></div>
+                                        <div class="mt-2 small">К списанию: <b><?php echo number_format($_POST['points_to_spend'] ?? $_POST['points_spent'], 2); ?> Б.</b></div>
                                     </div>
                                 <?php endif; ?>
                             </div>
@@ -215,10 +217,10 @@ include __DIR__ . '/header.php';
                 <div class="receipt-row border-bottom mb-2 pb-2"><span>ТИП:</span> <strong>НАЛОЖЕННЫЙ ПЛАТЕЖ (<?php echo e($parcel['payment_method']); ?>)</strong></div>
 
                 <?php if ($parcel['loyalty_spent_this'] > 0): ?>
-                    <div class="receipt-row small text-danger"><span>БОНУСОВ СПИСАНО:</span> <span>-<?php echo number_format($parcel['loyalty_spent_this'], 0); ?> Б.</span></div>
+                    <div class="receipt-row small text-danger"><span>БОНУСОВ СПИСАНО:</span> <span>-<?php echo number_format($parcel['loyalty_spent_this'], 2); ?> Б.</span></div>
                 <?php endif; ?>
                 <?php if ($parcel['loyalty_earned_this'] > 0): ?>
-                    <div class="receipt-row small text-success"><span>БОНУСОВ НАЧИСЛЕНО:</span> <span>+<?php echo number_format($parcel['loyalty_earned_this'], 0); ?> Б.</span></div>
+                    <div class="receipt-row small text-success"><span>БОНУСОВ НАЧИСЛЕНО:</span> <span>+<?php echo number_format($parcel['loyalty_earned_this'], 2); ?> Б.</span></div>
                 <?php endif; ?>
 
                 <div class="receipt-row border-top mt-3 pt-2"><span>ИТОГО К ОПЛАТЕ:</span> <span class="h4 mb-0 fw-bold"><?php echo number_format($parcel['cod'] - $parcel['loyalty_spent_this'], 2); ?> BYN</span></div>

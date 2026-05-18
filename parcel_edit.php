@@ -42,6 +42,7 @@ try {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) die("CSRF validation failed.");
     $sender_address = trim($_POST['sender_address'] ?? '');
     $sender_pvz = trim($_POST['sender_pvz'] ?? '');
     $address = trim($_POST['address'] ?? '');
@@ -73,17 +74,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $cost = $base_cost + $cod_fee + $dv_fee + $inv_fee;
 
+    // Платное редактирование (4% комиссия для пользователей)
+    $edit_fee = (float)($parcel['edit_fee'] ?? 0);
+    if ($user['role'] !== 'worker') {
+        $edit_fee += $cost * 0.04;
+    }
+    $total_cost = $cost + $edit_fee;
+
     try {
         try {
             $stmt = $pdo->prepare("UPDATE parcels SET
                 sender_address = :saddr, sender_pvz = :spvz, address = :addr, pickup_point = :pvz,
                 weight = :w, cost = :c, base_cost = :bc, cod_fee = :cf, dv_fee = :df, inv_fee = :if,
-                tariff = :t, cod = :cod, declared_value = :dv, inventory = :inv
+                tariff = :t, cod = :cod, declared_value = :dv, inventory = :inv,
+                edit_fee = :ef, is_paid = 0
                 WHERE id = :id");
             $stmt->execute([
                 'saddr' => $sender_address, 'spvz' => $sender_pvz, 'addr' => $address, 'pvz' => $pickup_point,
-                'w' => $weight, 'c' => $cost, 'bc' => $base_cost, 'cf' => $cod_fee, 'df' => $dv_fee, 'if' => $inv_fee,
-                't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'inv' => $inventory, 'id' => $id
+                'w' => $weight, 'c' => $total_cost, 'bc' => $base_cost, 'cf' => $cod_fee, 'df' => $dv_fee, 'if' => $inv_fee,
+                't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'inv' => $inventory, 'id' => $id,
+                'ef' => $edit_fee
             ]);
         } catch (PDOException $e) {
             if (strpos($e->getMessage(), 'sender_address') !== false) {
@@ -127,6 +137,7 @@ include __DIR__ . '/header.php';
                 <?php endif; ?>
 
                 <form method="post" class="row g-4">
+                    <?php echo csrfInput(); ?>
                     <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">Тариф</label>
                         <select name="tariff" id="tariffSelect" class="form-select form-select-lg rounded-3" required onchange="checkStamp(this.value)">

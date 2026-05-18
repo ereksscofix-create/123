@@ -39,6 +39,16 @@ function getShiftStats($shift_id) {
 }
 
 /**
+ * Получить детальный список транзакций по смене
+ */
+function getShiftTransactions($shift_id) {
+    global $pdo;
+    $stmt = $pdo->prepare("SELECT * FROM transactions WHERE shift_id = :sid ORDER BY id ASC");
+    $stmt->execute(['sid' => $shift_id]);
+    return $stmt->fetchAll();
+}
+
+/**
  * Получить карту лояльности по номеру
  */
 function getLoyaltyCard($number) {

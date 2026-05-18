@@ -25,6 +25,7 @@ $rates = [
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) die("CSRF validation failed.");
     $tariff_key = $_POST['tariff'] ?? 'ST';
     $track = $tariff_key . str_pad(rand(0, 999999999), 9, '0', STR_PAD_LEFT) . 'BY';
 
@@ -150,6 +151,7 @@ include __DIR__ . '/header.php';
                 <?php endif; ?>
 
                 <form method="post" id="parcelForm" class="row g-4">
+                    <?php echo csrfInput(); ?>
                     <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">ID Отправителя</label>
                         <input type="number" name="sender_id" class="form-control form-control-lg rounded-3" value="<?php echo (int)$user['id']; ?>" required>

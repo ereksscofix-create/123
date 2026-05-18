@@ -21,6 +21,18 @@ if ($action === 'open' && !$current_shift) {
     header("Location: shift_manage.php"); exit;
 }
 
+// 1.1 ВНЕСЕНИЕ / ИЗЪЯТИЕ
+if (isset($_POST['cash_op']) && $current_shift) {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) die("CSRF validation failed.");
+    $amount = (float)$_POST['amount'];
+    $op_type = $_POST['op_type']; // income (внесение) / expense (изъятие)
+    $cat = ($op_type === 'income') ? 'Внесение наличных' : 'Изъятие наличных';
+    if ($amount > 0) {
+        logTransaction($current_shift['id'], $worker_id, $op_type, $cat, $amount);
+        header("Location: shift_manage.php"); exit;
+    }
+}
+
 // 2. ЗАКРЫТИЕ СМЕНЫ (Z-ОТЧЕТ)
 if ($action === 'close' && $current_shift) {
     $stmt = $pdo->prepare("UPDATE shifts SET is_closed = 1, closed_at = NOW() WHERE id = :sid");
@@ -31,9 +43,11 @@ if ($action === 'close' && $current_shift) {
 // 3. ПРОСМОТР ОТЧЕТА (X или Z)
 $report_shift_id = (int)($_GET['shift_id'] ?? ($current_shift['id'] ?? 0));
 $stats = [];
+$detailed_logs = [];
 $shift_data = null;
 if ($report_shift_id) {
     $stats = getShiftStats($report_shift_id);
+    $detailed_logs = getShiftTransactions($report_shift_id);
     $stmt = $pdo->prepare("SELECT * FROM shifts WHERE id = :sid");
     $stmt->execute(['sid' => $report_shift_id]);
     $shift_data = $stmt->fetch();
@@ -62,7 +76,7 @@ include __DIR__ . '/header.php';
                     <span class="badge bg-white text-primary rounded-pill">ОТКРЫТА: <?php echo date('H:i', strtotime($current_shift['opened_at'])); ?></span>
                 </div>
                 <div class="card-body p-4 p-md-5">
-                    <div class="row g-4 mb-4">
+                    <div class="row g-4 mb-5">
                         <div class="col-6">
                             <a href="shift_manage.php?report=x" class="btn btn-outline-primary w-100 py-3 rounded-4 fw-bold">
                                 <i class="bi bi-file-earmark-bar-graph me-2"></i>X-ОТЧЕТ
@@ -74,6 +88,25 @@ include __DIR__ . '/header.php';
                             </a>
                         </div>
                     </div>
+
+                    <h5 class="fw-bold mb-3">Денежные операции</h5>
+                    <form method="post" class="row g-3 p-4 bg-light rounded-4 border">
+                        <?php echo csrfInput(); ?>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Сумма (BYN)</label>
+                            <input type="number" step="0.01" name="amount" class="form-control" required placeholder="0.00">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Тип операции</label>
+                            <select name="op_type" class="form-select">
+                                <option value="income">Внесение (+)</option>
+                                <option value="expense">Изъятие (-)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" name="cash_op" class="btn btn-dark w-100 fw-bold">Выполнить</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         <?php endif; ?>
@@ -124,9 +157,37 @@ include __DIR__ . '/header.php';
                         <div class="d-flex justify-content-between fw-bold mt-2 pt-2 border-top"><span>ИТОГО РАСХОД:</span> <span><?php echo number_format($total_expense, 2); ?> BYN</span></div>
                     </div>
 
-                    <div class="bg-light p-3 rounded-3 text-center">
+                    <div class="bg-light p-3 rounded-3 text-center mb-4">
                         <div class="small fw-bold">НАЛИЧНОСТЬ В КАССЕ:</div>
                         <div class="h3 mb-0 fw-extrabold text-primary"><?php echo number_format($total_income - $total_expense, 2); ?> BYN</div>
+                    </div>
+
+                    <div class="detailed-report mt-5">
+                        <h6 class="fw-bold text-uppercase border-bottom pb-2 mb-3">Детальный журнал операций</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm x-small" style="font-size: 11px;">
+                                <thead>
+                                    <tr class="text-muted">
+                                        <th>Время</th>
+                                        <th>Тип</th>
+                                        <th>Категория</th>
+                                        <th class="text-end">Сумма</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach($detailed_logs as $log): ?>
+                                        <tr>
+                                            <td><?php echo date('H:i:s', strtotime($log['created_at'])); ?></td>
+                                            <td class="fw-bold <?php echo $log['type'] === 'income' ? 'text-success' : 'text-danger'; ?>">
+                                                <?php echo $log['type'] === 'income' ? 'ПРИХОД' : 'РАСХОД'; ?>
+                                            </td>
+                                            <td><?php echo e($log['category']); ?></td>
+                                            <td class="text-end fw-bold"><?php echo number_format($log['amount'], 2); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <div class="text-center mt-5 d-print-none">

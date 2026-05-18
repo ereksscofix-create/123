@@ -61,7 +61,7 @@ if (isset($_POST['issue']) && isset($_POST['id'])) {
         $stmt->execute(['id' => $tid]);
         $amt = (float)$stmt->fetchColumn();
 
-        $stmt = $pdo->prepare("UPDATE money_transfers SET status = 'issued' WHERE id = :id");
+        $stmt = $pdo->prepare("UPDATE money_transfers SET status = 'issued', issued_at = NOW() WHERE id = :id");
         $stmt->execute(['id' => $tid]);
 
         // Логируем расход (Выплата из кассы)
