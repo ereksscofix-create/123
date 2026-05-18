@@ -88,6 +88,30 @@ include __DIR__ . '/header.php';
                             <td class="text-end py-1 fw-bold"><?php echo number_format($parcel['cod'], 2); ?></td>
                         </tr>
                         <?php endif; ?>
+                        <?php if($parcel['loyalty_spent'] > 0): ?>
+                        <tr class="text-danger">
+                            <td class="py-1 fw-bold">Списание бонусов</td>
+                            <td class="text-end py-1 fw-bold">-<?php echo number_format($parcel['loyalty_spent'], 0); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if($parcel['loyalty_earned'] > 0): ?>
+                        <tr class="text-success">
+                            <td class="py-1 fw-bold">Начислено бонусов</td>
+                            <td class="text-end py-1 fw-bold">+<?php echo number_format($parcel['loyalty_earned'], 0); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if($parcel['loyalty_spent'] > 0): ?>
+                        <tr class="text-danger">
+                            <td class="py-1 fw-bold">Списание бонусов</td>
+                            <td class="text-end py-1 fw-bold">-<?php echo number_format($parcel['loyalty_spent'], 0); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if($parcel['loyalty_earned'] > 0): ?>
+                        <tr class="text-success">
+                            <td class="py-1 fw-bold">Начислено бонусов</td>
+                            <td class="text-end py-1 fw-bold">+<?php echo number_format($parcel['loyalty_earned'], 0); ?></td>
+                        </tr>
+                        <?php endif; ?>
                     </table>
                 </div>
 
@@ -99,8 +123,8 @@ include __DIR__ . '/header.php';
                 <?php endif; ?>
 
                 <div class="receipt-row border-top mt-2 pt-2 fw-bold" style="font-size: 18px;">
-                    <span>ИТОГО:</span>
-                    <span><?php echo number_format($parcel['cost'] + ($parcel['is_cod_paid'] ? $parcel['cod'] : 0), 2); ?> BYN</span>
+                    <span>ИТОГО К ОПЛАТЕ:</span>
+                    <span><?php echo number_format($parcel['cost'] + ($parcel['is_cod_paid'] ? $parcel['cod'] : 0) - $parcel['loyalty_spent'], 2); ?> BYN</span>
                 </div>
 
                 <div class="text-center mt-5">

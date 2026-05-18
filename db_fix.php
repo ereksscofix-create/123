@@ -143,6 +143,15 @@ try {
             } catch(Exception $e) {}
         }
 
+        if ($tname === 'loyalty_cards') {
+            $s = $pdo->query("DESCRIBE loyalty_cards");
+            $lc_cols = $s->fetchAll(PDO::FETCH_COLUMN);
+            if (!in_array('payments_count', $lc_cols)) {
+                $pdo->exec("ALTER TABLE loyalty_cards ADD COLUMN payments_count INT(11) DEFAULT 0 AFTER balance");
+                echo "<span class='ok'>payments_count+ </span>";
+            }
+        }
+
         echo "<span class='ok'>OK</span></li>";
     }
 

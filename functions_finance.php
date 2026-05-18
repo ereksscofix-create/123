@@ -61,3 +61,26 @@ function getLoyaltyPercent($level) {
     ];
     return $lvls[$level] ?? 0.03;
 }
+
+/**
+ * Пересчитать уровень карты на основе количества оплат
+ */
+function updateLoyaltyLevel($card_id) {
+    global $pdo;
+    $stmt = $pdo->prepare("SELECT payments_count, level, user_id FROM loyalty_cards WHERE id = :id");
+    $stmt->execute(['id' => $card_id]);
+    $card = $stmt->fetch();
+    if (!$card) return;
+
+    $count = (int)$card['payments_count'];
+    $new_level = 'classic';
+    if ($count >= 100) $new_level = 'premium';
+    elseif ($count >= 40) $new_level = 'gold';
+    elseif ($count >= 20) $new_level = 'bronze';
+
+    if ($new_level !== $card['level']) {
+        $pdo->prepare("UPDATE loyalty_cards SET level = :lvl WHERE id = :cid")
+            ->execute(['lvl' => $new_level, 'cid' => $card_id]);
+        notifyUser($card['user_id'], "Поздравляем! Ваш уровень лояльности повышен до " . strtoupper($new_level), 'success', true);
+    }
+}

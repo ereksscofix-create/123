@@ -94,19 +94,7 @@ if (isset($_POST['pay'])) {
                 $pdo->prepare("INSERT INTO loyalty_transactions (card_id, amount, type, expires_at) VALUES (:cid, :amt, 'earn', DATE_ADD(NOW(), INTERVAL 1 YEAR))")
                     ->execute(['cid' => $l_card['id'], 'amt' => $earned]);
 
-                // Проверка уровня
-                $stmt = $pdo->prepare("SELECT payments_count FROM loyalty_cards WHERE id = :id");
-                $stmt->execute(['id' => $l_card['id']]);
-                $count = (int)$stmt->fetchColumn();
-                $new_level = 'classic';
-                if ($count >= 100) $new_level = 'premium';
-                elseif ($count >= 40) $new_level = 'gold';
-                elseif ($count >= 20) $new_level = 'bronze';
-
-                if ($new_level !== $l_card['level']) {
-                    $pdo->prepare("UPDATE loyalty_cards SET level = :lvl WHERE id = :cid")->execute(['lvl' => $new_level, 'cid' => $l_card['id']]);
-                    notifyUser($l_card['user_id'], "Поздравляем! Ваш уровень лояльности повышен до " . strtoupper($new_level));
-                }
+                updateLoyaltyLevel($l_card['id']);
             }
         }
 
@@ -121,6 +109,10 @@ if (isset($_POST['pay'])) {
 
         $success = true;
         $parcel['is_paid'] = 1;
+        $parcel['receipt_no'] = $receipt;
+        $parcel['payment_method'] = $method;
+        $parcel['loyalty_earned'] = $earned;
+        $parcel['loyalty_spent'] = $points_spent;
     } catch (Exception $e) { $error = $e->getMessage(); }
 }
 
@@ -136,6 +128,10 @@ include __DIR__ . '/header.php';
                 <h4 class="mb-0 fw-bold"><i class="bi bi-cash-coin me-2"></i>Прием оплаты</h4>
             </div>
             <div class="card-body p-4 p-md-5">
+                <?php if ($error): ?>
+                    <div class="alert alert-danger border-0 rounded-3 mb-4"><?php echo $error; ?></div>
+                <?php endif; ?>
+
                 <div class="text-center mb-4">
                     <div class="text-muted small text-uppercase fw-bold">К оплате за посылку <?php echo e($parcel['track_code']); ?></div>
                     <div class="display-4 fw-extrabold text-success"><?php echo number_format($parcel['cost'], 2); ?> BYN</div>
@@ -148,46 +144,42 @@ include __DIR__ . '/header.php';
                     <li class="list-group-item d-flex justify-content-between"><span>Тариф:</span> <strong><?php echo e($parcel['tariff']); ?></strong></li>
                 </ul>
 
-                <form method="post" id="loyaltyForm" class="mb-4 p-3 bg-light rounded-3 border border-primary border-opacity-10">
-                    <label class="form-label fw-bold small text-uppercase"><i class="bi bi-star-fill text-warning me-1"></i>Программа лояльности</label>
-                    <div class="input-group">
-                        <input type="text" name="loyalty_card_no" class="form-control" placeholder="Номер карты 5000..." value="<?php echo e($_POST['loyalty_card_no'] ?? ''); ?>">
-                        <button type="submit" name="check_loyalty" class="btn btn-primary">Проверить</button>
-                    </div>
-
-                    <?php if ($loyalty_card): ?>
-                        <div class="mt-3 p-3 bg-white rounded-3 shadow-sm">
-                            <div class="d-flex justify-content-between">
-                                <span class="small text-muted">Уровень: <b><?php echo strtoupper($loyalty_card['level']); ?></b></span>
-                                <span class="small text-muted">Баланс: <b><?php echo number_format($loyalty_card['balance'], 0); ?> Б.</b></span>
-                            </div>
-                            <input type="hidden" name="card_id" value="<?php echo $loyalty_card['id']; ?>">
-
-                            <?php if (!$confirm_required): ?>
-                                <div class="mt-3">
-                                    <label class="form-label x-small fw-bold">Списать бонусы?</label>
-                                    <div class="input-group input-group-sm">
-                                        <input type="number" name="points_to_spend" class="form-control" max="<?php echo min($loyalty_card['balance'], $parcel['cost']); ?>" placeholder="Сумма списания">
-                                        <button type="submit" name="send_code" class="btn btn-warning">Получить код</button>
-                                    </div>
-                                </div>
-                            <?php else: ?>
-                                <div class="mt-3">
-                                    <label class="form-label x-small fw-bold text-success">Код подтверждения отправлен!</label>
-                                    <input type="hidden" name="points_spent" value="<?php echo $_POST['points_to_spend']; ?>">
-                                    <input type="text" name="confirm_code" class="form-control form-control-sm" placeholder="Введите код из личного кабинета" required>
-                                    <div class="mt-2 small">К списанию: <b><?php echo $_POST['points_to_spend']; ?> Б.</b></div>
-                                </div>
-                            <?php endif; ?>
+                <form method="post" id="unifiedPayForm">
+                    <!-- Секция лояльности -->
+                    <div class="mb-4 p-3 bg-light rounded-3 border border-primary border-opacity-10">
+                        <label class="form-label fw-bold small text-uppercase"><i class="bi bi-star-fill text-warning me-1"></i>Программа лояльности</label>
+                        <div class="input-group">
+                            <input type="text" name="loyalty_card_no" class="form-control" placeholder="Номер карты 5000..." value="<?php echo e($_POST['loyalty_card_no'] ?? ''); ?>">
+                            <button type="submit" name="check_loyalty" class="btn btn-primary">Проверить</button>
                         </div>
-                    <?php endif; ?>
-                </form>
 
-                <form method="post" id="payForm">
-                    <input type="hidden" name="loyalty_card_no" value="<?php echo e($_POST['loyalty_card_no'] ?? ''); ?>">
-                    <input type="hidden" name="card_id" value="<?php echo e($_POST['card_id'] ?? ''); ?>">
-                    <input type="hidden" name="points_spent" value="<?php echo e($_POST['confirm_code'] ? ($_POST['points_spent'] ?? 0) : 0); ?>">
-                    <input type="hidden" name="confirm_code" value="<?php echo e($_POST['confirm_code'] ?? ''); ?>">
+                        <?php if ($loyalty_card): ?>
+                            <div class="mt-3 p-3 bg-white rounded-3 shadow-sm">
+                                <div class="d-flex justify-content-between">
+                                    <span class="small text-muted">Уровень: <b><?php echo strtoupper($loyalty_card['level']); ?></b></span>
+                                    <span class="small text-muted">Баланс: <b><?php echo number_format($loyalty_card['balance'], 0); ?> Б.</b></span>
+                                </div>
+                                <input type="hidden" name="card_id" value="<?php echo $loyalty_card['id']; ?>">
+
+                                <?php if (!$confirm_required && empty($_POST['confirm_code'])): ?>
+                                    <div class="mt-3">
+                                        <label class="form-label x-small fw-bold">Списать бонусы?</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" name="points_to_spend" class="form-control" max="<?php echo min($loyalty_card['balance'], $parcel['cost']); ?>" placeholder="Сумма списания">
+                                            <button type="submit" name="send_code" class="btn btn-warning">Получить код</button>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="mt-3">
+                                        <label class="form-label x-small fw-bold text-success"><?php echo $confirm_required ? 'Код подтверждения отправлен!' : 'Бонусы готовы к списанию'; ?></label>
+                                        <input type="hidden" name="points_spent" value="<?php echo $_POST['points_to_spend'] ?? $_POST['points_spent']; ?>">
+                                        <input type="text" name="confirm_code" class="form-control form-control-sm" placeholder="Введите код из личного кабинета" required value="<?php echo e($_POST['confirm_code'] ?? ''); ?>">
+                                        <div class="mt-2 small">К списанию: <b><?php echo $_POST['points_to_spend'] ?? $_POST['points_spent']; ?> Б.</b></div>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
 
                     <div class="mb-4">
                         <label class="form-label fw-bold small text-uppercase">Способ оплаты</label>
@@ -244,8 +236,8 @@ include __DIR__ . '/header.php';
                 </div>
                 <div class="receipt-row"><span>НОМЕР ТРЕКА:</span> <strong><?php echo e($parcel['track_code']); ?></strong></div>
                 <div class="receipt-row"><span>ДАТА:</span> <strong><?php echo date('d.m.Y H:i:s'); ?></strong></div>
-                <div class="receipt-row"><span>ОПЕРАЦИЯ №:</span> <strong><?php echo e($_POST['receipt_no'] ?? '---'); ?></strong></div>
-                <div class="receipt-row border-bottom mb-2 pb-2"><span>ТИП:</span> <strong>ОПЛАТА (<?php echo e($_POST['method'] ?? 'Карта'); ?>)</strong></div>
+                <div class="receipt-row"><span>ОПЕРАЦИЯ №:</span> <strong><?php echo e($parcel['receipt_no'] ?? '---'); ?></strong></div>
+                <div class="receipt-row border-bottom mb-2 pb-2"><span>ТИП:</span> <strong>ОПЛАТА (<?php echo e($parcel['payment_method'] ?? 'Карта'); ?>)</strong></div>
 
                 <div class="receipt-row"><span>ОТПРАВИТЕЛЬ:</span> <strong><?php echo e($parcel['s_name']); ?></strong></div>
                 <div class="receipt-row border-bottom mb-2 pb-2"><span>ПОЛУЧАТЕЛЬ:</span> <strong><?php echo e($parcel['r_name']); ?></strong></div>
