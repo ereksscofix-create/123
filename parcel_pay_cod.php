@@ -114,12 +114,8 @@ if (isset($_POST['pay'])) {
         // Уведомляем отправителя, что деньги получены
         notifyUser($parcel['sender_id'], "Наложенный платеж за посылку {$parcel['track_code']} оплачен получателем. Ожидайте перевод.");
 
-        $success = true;
-        $parcel['is_cod_paid'] = 1;
-        $parcel['receipt_no'] = $receipt;
-        $parcel['payment_method'] = $method;
-        $parcel['loyalty_earned_this'] = $earned;
-        $parcel['loyalty_spent_this'] = $points_spent;
+        header("Location: dashboard.php?pay_success=1&id=$id");
+        exit;
 
     } catch (Exception $e) { $error = $e->getMessage(); }
 }

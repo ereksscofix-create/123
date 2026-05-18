@@ -127,6 +127,19 @@ include __DIR__ . '/header.php';
                     <span><?php echo number_format($parcel['cost'] + ($parcel['is_cod_paid'] ? $parcel['cod'] : 0) - $parcel['loyalty_spent'], 2); ?> BYN</span>
                 </div>
 
+                <?php
+                // Получаем актуальный остаток бонусов если карта была использована
+                $stmt = $pdo->prepare("SELECT balance FROM loyalty_cards WHERE user_id = :uid");
+                $stmt->execute(['uid' => $parcel['sender_id']]); // Для услуг связи - отправитель
+                $l_balance = $stmt->fetchColumn();
+                if ($l_balance !== false):
+                ?>
+                <div class="receipt-row small text-muted border-top mt-2 pt-2">
+                    <span>ОСТАТОК БОНУСОВ:</span>
+                    <span><?php echo number_format($l_balance, 0); ?> Б.</span>
+                </div>
+                <?php endif; ?>
+
                 <div class="text-center mt-5">
                     <div class="mb-3 small opacity-75">СПАСИБО, ЧТО ВЫБИРАЕТЕ НАС!</div>
                     <div class="d-print-none d-flex gap-2 justify-content-center">

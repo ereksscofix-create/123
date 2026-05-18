@@ -198,6 +198,21 @@ include __DIR__ . '/header.php';
     <i class="bi bi-plus-lg fs-3"></i>
 </a>
 
+<?php if (isset($_GET['pay_success'])): ?>
+    <div class="alert alert-success border-0 shadow-lg rounded-4 p-4 mb-4 animate-fade-in">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <div class="bg-white bg-opacity-25 p-3 rounded-circle me-3"><i class="bi bi-check-circle-fill fs-2 text-success"></i></div>
+                <div>
+                    <h5 class="mb-0 fw-bold">Оплата успешно принята!</h5>
+                    <p class="mb-0 small opacity-75">Данные о посылке и бонусах обновлены.</p>
+                </div>
+            </div>
+            <a href="parcel_receipt.php?id=<?php echo (int)$_GET['id']; ?>" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">Смотреть чек</a>
+        </div>
+    </div>
+<?php endif; ?>
+
 <div class="row g-3 g-lg-4 animate-fade-in">
 
     <!-- 1. ПРИВЕТСТВИЕ И СТАТИСТИКА -->

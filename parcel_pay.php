@@ -107,12 +107,8 @@ if (isset($_POST['pay'])) {
         $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
         $stmt->execute(['pid' => $id, 'txt' => $status_text]);
 
-        $success = true;
-        $parcel['is_paid'] = 1;
-        $parcel['receipt_no'] = $receipt;
-        $parcel['payment_method'] = $method;
-        $parcel['loyalty_earned'] = $earned;
-        $parcel['loyalty_spent'] = $points_spent;
+        header("Location: dashboard.php?pay_success=1&id=$id");
+        exit;
     } catch (Exception $e) { $error = $e->getMessage(); }
 }
 
