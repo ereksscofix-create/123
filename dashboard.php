@@ -214,7 +214,7 @@ include __DIR__ . '/header.php';
 
 <!-- АКТИВНЫЕ КОДЫ ПОЛУЧЕНИЯ -->
 <?php if (!empty($codes)): ?>
-<div class="alert alert-success border-0 shadow-lg rounded-4 p-4 mb-4 animate-fade-in" style="background: rgba(6, 199, 85, 0.08); border: 1px solid rgba(6, 199, 85, 0.18) !important;">
+<div id="active-codes" class="alert alert-success border-0 shadow-lg rounded-4 p-4 mb-4 animate-fade-in" style="background: rgba(6, 199, 85, 0.08); border: 1px solid rgba(6, 199, 85, 0.18) !important;">
     <div class="d-flex align-items-start gap-3">
         <div class="bg-success bg-opacity-25 p-3 rounded-circle d-none d-md-block"><i class="bi bi-gift-fill fs-3 text-success"></i></div>
         <div class="flex-grow-1">
@@ -272,6 +272,11 @@ include __DIR__ . '/header.php';
                     <a href="parcel_add.php" class="btn btn-create fw-bold shadow-sm rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Создать посылку</a>
                     <?php if($role === 'worker'): ?>
                         <a href="parcel_issue.php" class="btn btn-success border-0 fw-bold shadow-sm rounded-pill px-4">Выдача</a>
+                    <?php endif; ?>
+                    <?php if(!empty($codes)): ?>
+                        <a href="#active-codes" class="btn btn-warning border-0 fw-bold shadow-sm rounded-pill px-4 text-dark">
+                            <i class="bi bi-qr-code-scan me-2"></i>QR-коды (<?php echo count($codes); ?>)
+                        </a>
                     <?php endif; ?>
                 </div>
             </div>

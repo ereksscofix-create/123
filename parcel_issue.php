@@ -19,9 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $code = trim($_POST['code'] ?? '');
     $secret = trim($_POST['secret'] ?? '');
     $passport = trim($_POST['passport'] ?? '');
+    $loyalty_card_num = trim($_POST['loyalty_card'] ?? '');
 
     try {
-        $stmt = $pdo->prepare("SELECT id, recipient_id, is_paid, pay_on_delivery, cod, is_cod_paid, shelf, pickup_point FROM parcels WHERE track_code = :track LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, sender_id, recipient_id, is_paid, pay_on_delivery, cod, is_cod_paid, shelf, pickup_point, is_return FROM parcels WHERE track_code = :track LIMIT 1");
         $stmt->execute(['track' => $track]);
         $parcel = $stmt->fetch();
 
@@ -67,6 +68,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$can_issue && $passport !== '') {
                 $can_issue = true;
                 $method = "по паспорту ($passport)";
+            }
+
+            if (!$can_issue && $loyalty_card_num !== '') {
+                $stmt = $pdo->prepare("SELECT user_id FROM loyalty_cards WHERE card_number = :cn LIMIT 1");
+                $stmt->execute(['cn' => $loyalty_card_num]);
+                $card_uid = $stmt->fetchColumn();
+
+                $target_uid = ((int)($parcel['is_return'] ?? 0) === 1) ? (int)$parcel['sender_id'] : (int)$parcel['recipient_id'];
+
+                if ($card_uid && (int)$card_uid === $target_uid) {
+                    $can_issue = true;
+                    $method = "по карте лояльности ($loyalty_card_num)";
+                }
             }
 
             if ($can_issue) {
@@ -146,6 +160,11 @@ include __DIR__ . '/header.php';
                     <div class="mb-3">
                         <label class="form-label">Секретный код с ярлыка (если есть)</label>
                         <input type="text" name="secret" class="form-control" placeholder="Секретный код">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Номер карты лояльности</label>
+                        <input type="text" name="loyalty_card" class="form-control" placeholder="5000XXXXXXXXXXXX">
                     </div>
 
                     <div class="mb-3">
