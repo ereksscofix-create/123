@@ -55,12 +55,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (mb_stripos($final_status, 'ожидает') !== false && mb_stripos($final_status, 'получения') !== false) {
                 // Если статус "Ожидает получения" — генерируем код
-                $code = rand(1000, 9999);
-                $secret = rand(100000, 999999);
+                $code = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+                $secret = substr(md5(time() . $id), 0, 6);
                 $stmt = $pdo->prepare("INSERT INTO parcel_codes (parcel_id, code, secret_code, code_date) VALUES (:pid, :code, :secret, DATE(NOW()))");
                 $stmt->execute(['pid' => $id, 'code' => $code, 'secret' => $secret]);
 
-                $notif_msg .= " Ваш код получения: $code";
+                $notif_msg .= " Ваш код получения: $code. QR-код для выдачи доступен в разделе 'Мои QR-коды' на дашборде.";
 
                 // Если это ВОЗВРАТ — уведомляем ОТПРАВИТЕЛЯ (он теперь получатель)
                 $target_user_id = ((int)$parcel['is_return'] === 1) ? $parcel['sender_id'] : $parcel['recipient_id'];

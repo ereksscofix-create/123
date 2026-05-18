@@ -169,6 +169,19 @@ try {
         $codes = $stmt->fetchAll();
     }
 
+    // Посылки готовые к выдаче
+    $ready_to_pickup = [];
+    $has_awaiting = false;
+    if ($role !== 'worker') {
+        foreach ($parcels as $p) {
+            $st = $p['last_status'] ?? '';
+            if ((int)$p['recipient_id'] === $user_id && (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false)) {
+                $ready_to_pickup[] = $p;
+                $has_awaiting = true;
+            }
+        }
+    }
+
 } catch (PDOException $e) { $db_error = $e->getMessage(); }
 
 include __DIR__ . '/header.php';
@@ -212,34 +225,30 @@ include __DIR__ . '/header.php';
     <i class="bi bi-plus-lg fs-3"></i>
 </a>
 
-<!-- АКТИВНЫЕ КОДЫ ПОЛУЧЕНИЯ -->
-<?php if (!empty($codes)): ?>
-<div id="active-codes" class="alert alert-success border-0 shadow-lg rounded-4 p-4 mb-4 animate-fade-in" style="background: rgba(6, 199, 85, 0.08); border: 1px solid rgba(6, 199, 85, 0.18) !important;">
+<!-- ПОСЫЛКИ К ВЫДАЧЕ -->
+<?php if ($has_awaiting): ?>
+<div id="active-codes" class="alert alert-warning border-0 shadow-lg rounded-4 p-4 mb-4 animate-fade-in" style="background: rgba(255, 193, 7, 0.08); border: 1px solid rgba(255, 193, 7, 0.18) !important;">
     <div class="d-flex align-items-start gap-3">
-        <div class="bg-success bg-opacity-25 p-3 rounded-circle d-none d-md-block"><i class="bi bi-gift-fill fs-3 text-success"></i></div>
+        <div class="bg-warning bg-opacity-25 p-3 rounded-circle d-none d-md-block"><i class="bi bi-box-seam-fill fs-3 text-dark"></i></div>
         <div class="flex-grow-1">
-            <h5 class="mb-3 fw-bold text-success">🎁 У вас есть посылки для получения!</h5>
+            <h5 class="mb-3 fw-bold text-dark">📦 Готовы к получению (<?php echo count($ready_to_pickup); ?>)</h5>
             <div class="row g-3">
-                <?php foreach ($codes as $code): ?>
+                <?php foreach ($ready_to_pickup as $p): ?>
                 <div class="col-md-6 col-lg-4">
                     <div class="bg-white p-3 rounded-4 shadow-sm border h-100 d-flex flex-column justify-content-between">
                         <div>
-                            <div class="small text-muted mb-1">Трек: <b><?php echo e($code['track_code']); ?></b></div>
-                            <div class="small text-muted mb-2">От: <?php echo e($code['sender_name']); ?></div>
+                            <div class="fw-bold text-primary mb-1"><?php echo e($p['track_code']); ?></div>
+                            <div class="small text-muted mb-2"><?php echo e($p['s_name'] ?: $p['s_login']); ?> → Вам</div>
                         </div>
-                        <div class="d-flex gap-2 align-items-center">
-                            <div class="bg-primary text-white px-3 py-2 rounded-3 fw-bold flex-grow-1 text-center" style="font-family: monospace; letter-spacing: 2px; font-size: 1.2rem;">
-                                <?php echo e($code['code']); ?>
-                            </div>
-                            <a href="parcel_pickup_qr.php?id=<?php echo $code['parcel_id']; ?>" class="btn btn-outline-primary rounded-3 px-3 py-2" title="Показать QR-код">
-                                <i class="bi bi-qr-code-scan"></i>
-                            </a>
+                        <div class="d-grid">
+                            <button class="btn btn-success rounded-pill fw-bold" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')">
+                                <i class="bi bi-qr-code me-2"></i>ПОЛУЧИТЬ QR
+                            </button>
                         </div>
                     </div>
                 </div>
                 <?php endforeach; ?>
             </div>
-            <div class="mt-3 x-small text-muted fw-bold text-uppercase"><i class="bi bi-info-circle me-1"></i> Коды действительны до конца сегодняшнего дня</div>
         </div>
     </div>
 </div>
@@ -273,9 +282,9 @@ include __DIR__ . '/header.php';
                     <?php if($role === 'worker'): ?>
                         <a href="parcel_issue.php" class="btn btn-success border-0 fw-bold shadow-sm rounded-pill px-4">Выдача</a>
                     <?php endif; ?>
-                    <?php if(!empty($codes)): ?>
-                        <a href="#active-codes" class="btn btn-warning border-0 fw-bold shadow-sm rounded-pill px-4 text-dark">
-                            <i class="bi bi-qr-code-scan me-2"></i>QR-коды (<?php echo count($codes); ?>)
+                    <?php if($has_awaiting): ?>
+                        <a href="my_qr_codes.php" class="btn btn-warning border-0 fw-bold shadow-sm rounded-pill px-4 text-dark">
+                            <i class="bi bi-qr-code-scan me-2"></i>МОИ QR-КОДЫ
                         </a>
                     <?php endif; ?>
                 </div>
@@ -394,6 +403,12 @@ include __DIR__ . '/header.php';
                                             </span>
                                         </td>
                                         <td class="text-end pe-4">
+                                            <div class="d-flex justify-content-end gap-2 align-items-center">
+                                                <?php if ($role !== 'worker' && (int)$p['recipient_id'] === $user_id && (mb_stripos($p['last_status'] ?? '', 'ожидает') !== false || mb_stripos($p['last_status'] ?? '', 'прибыло') !== false)): ?>
+                                                    <button class="btn btn-success btn-sm rounded-pill px-3 fw-bold border-0 shadow-sm" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')">
+                                                        <i class="bi bi-qr-code me-1"></i> QR-код
+                                                    </button>
+                                                <?php endif; ?>
                                             <div class="dropdown">
                                                 <button class="btn btn-light btn-sm rounded-pill px-3 border shadow-none" type="button" data-bs-toggle="dropdown">
                                                     <i class="bi bi-three-dots"></i>
@@ -695,6 +710,24 @@ function showIssueQR(track, id) {
                 alert('Ошибка получения кода. Обратитесь в поддержку.');
             }
         });
+}
+
+function scrollToPickup() {
+    // Ищем первую посылку с кнопкой QR
+    const qrBtn = document.querySelector('.btn-success[onclick^="showIssueQR"]');
+    if (qrBtn) {
+        qrBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        qrBtn.classList.add('pulse-animation');
+        setTimeout(() => qrBtn.classList.remove('pulse-animation'), 3000);
+    } else {
+        // Если кнопка не в списке (например, отфильтровано), идем к блоку активных кодов
+        const activeBlock = document.getElementById('active-codes');
+        if (activeBlock) {
+            activeBlock.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            alert('У вас есть посылки к выдаче. Пожалуйста, найдите их в списке ниже и нажмите кнопку "QR-код".');
+        }
+    }
 }
 
 function confDel(id, track) {
