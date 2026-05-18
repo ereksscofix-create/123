@@ -28,29 +28,100 @@ try {
 
 $success = false;
 $error = '';
+$loyalty_card = null;
+$confirm_required = false;
+
+if (isset($_POST['check_loyalty'])) {
+    $card_no = trim($_POST['loyalty_card_no'] ?? '');
+    $loyalty_card = getLoyaltyCard($card_no);
+    if (!$loyalty_card) $error = "Карта лояльности не найдена.";
+}
+
+if (isset($_POST['send_code'])) {
+    $card_id = (int)$_POST['card_id'];
+    $points_to_spend = (float)$_POST['points_to_spend'];
+    $code = rand(1000, 9999);
+    $stmt = $pdo->prepare("INSERT INTO loyalty_confirm_codes (card_id, code, amount, expires_at) VALUES (:cid, :c, :a, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
+    $stmt->execute(['cid' => $card_id, 'c' => $code, 'a' => $points_to_spend]);
+
+    $stmt = $pdo->prepare("SELECT user_id FROM loyalty_cards WHERE id = :id");
+    $stmt->execute(['id' => $card_id]);
+    $uid = $stmt->fetchColumn();
+    notifyUser($uid, "Код подтверждения списания бонусов: $code. Сумма: $points_to_spend Б.", 'info', true);
+    $confirm_required = true;
+    $loyalty_card = getLoyaltyCard($_POST['loyalty_card_no']); // Restore card info
+}
+
 if (isset($_POST['pay'])) {
     $method = $_POST['method'] ?? 'Карта';
-    // Автоматическая генерация номера чека
     $receipt = 'RC' . date('ymd') . rand(1000, 9999);
     $cash_in = (float)($_POST['cash_amount'] ?? 0);
-    $cost = (float)$parcel['cost'];
-    $change = $cash_in - $cost;
+    $final_cost = (float)$parcel['cost'];
+
+    $points_spent = (float)($_POST['points_spent'] ?? 0);
+    $conf_code = trim($_POST['confirm_code'] ?? '');
 
     try {
-        $stmt = $pdo->prepare("UPDATE parcels SET is_paid = 1, payment_method = :m, receipt_no = :r WHERE id = :id");
-        $stmt->execute(['m' => $method, 'r' => $receipt, 'id' => $id]);
+        if ($points_spent > 0) {
+            $card_id = (int)$_POST['card_id'];
+            $stmt = $pdo->prepare("SELECT * FROM loyalty_confirm_codes WHERE card_id = :cid AND code = :code AND amount = :amt AND expires_at > NOW() LIMIT 1");
+            $stmt->execute(['cid' => $card_id, 'code' => $conf_code, 'amt' => $points_spent]);
+            if (!$stmt->fetch()) {
+                throw new Exception("Неверный или истекший код подтверждения бонусов.");
+            }
+            $final_cost -= $points_spent;
+            if ($final_cost < 0) $final_cost = 0;
 
-        // Логируем транзакцию
-        logTransaction($shift['id'], $user['id'], 'income', 'Услуги связи', $cost, $id);
+            // Списываем бонусы
+            $stmt = $pdo->prepare("UPDATE loyalty_cards SET balance = balance - :pts WHERE id = :cid");
+            $stmt->execute(['pts' => $points_spent, 'cid' => $card_id]);
 
-        $status_text = "Оплачено ($method, №$receipt) [" . date('d.m.Y H:i') . "] (Кассир: " . ($user['name'] ?: $user['login']) . ")";
+            $pdo->prepare("INSERT INTO loyalty_transactions (card_id, amount, type) VALUES (:cid, :amt, 'spend')")
+                ->execute(['cid' => $card_id, 'amt' => $points_spent]);
+        }
+
+        // Начисляем бонусы если карта указана
+        $earned = 0;
+        if (!empty($_POST['loyalty_card_no'])) {
+            $l_card = getLoyaltyCard($_POST['loyalty_card_no']);
+            if ($l_card) {
+                $pct = getLoyaltyPercent($l_card['level']);
+                $earned = $final_cost * $pct;
+
+                $stmt = $pdo->prepare("UPDATE loyalty_cards SET balance = balance + :e, payments_count = payments_count + 1 WHERE id = :cid");
+                $stmt->execute(['e' => $earned, 'cid' => $l_card['id']]);
+
+                $pdo->prepare("INSERT INTO loyalty_transactions (card_id, amount, type, expires_at) VALUES (:cid, :amt, 'earn', DATE_ADD(NOW(), INTERVAL 1 YEAR))")
+                    ->execute(['cid' => $l_card['id'], 'amt' => $earned]);
+
+                // Проверка уровня
+                $stmt = $pdo->prepare("SELECT payments_count FROM loyalty_cards WHERE id = :id");
+                $stmt->execute(['id' => $l_card['id']]);
+                $count = (int)$stmt->fetchColumn();
+                $new_level = 'classic';
+                if ($count >= 100) $new_level = 'premium';
+                elseif ($count >= 40) $new_level = 'gold';
+                elseif ($count >= 20) $new_level = 'bronze';
+
+                if ($new_level !== $l_card['level']) {
+                    $pdo->prepare("UPDATE loyalty_cards SET level = :lvl WHERE id = :cid")->execute(['lvl' => $new_level, 'cid' => $l_card['id']]);
+                    notifyUser($l_card['user_id'], "Поздравляем! Ваш уровень лояльности повышен до " . strtoupper($new_level));
+                }
+            }
+        }
+
+        $stmt = $pdo->prepare("UPDATE parcels SET is_paid = 1, payment_method = :m, receipt_no = :r, loyalty_earned = :e, loyalty_spent = :s WHERE id = :id");
+        $stmt->execute(['m' => $method, 'r' => $receipt, 'e' => $earned, 's' => $points_spent, 'id' => $id]);
+
+        logTransaction($shift['id'], $user['id'], 'income', 'Услуги связи', $final_cost, $id);
+
+        $status_text = "Оплачено ($method, №$receipt). Бонусы: -$points_spent / +$earned [" . date('d.m.Y H:i') . "]";
         $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
         $stmt->execute(['pid' => $id, 'txt' => $status_text]);
 
         $success = true;
-        // Можно обновить локальный объект
         $parcel['is_paid'] = 1;
-    } catch (PDOException $e) { $error = $e->getMessage(); }
+    } catch (Exception $e) { $error = $e->getMessage(); }
 }
 
 $page_title = "Оплата " . $parcel['track_code'];
@@ -77,7 +148,47 @@ include __DIR__ . '/header.php';
                     <li class="list-group-item d-flex justify-content-between"><span>Тариф:</span> <strong><?php echo e($parcel['tariff']); ?></strong></li>
                 </ul>
 
+                <form method="post" id="loyaltyForm" class="mb-4 p-3 bg-light rounded-3 border border-primary border-opacity-10">
+                    <label class="form-label fw-bold small text-uppercase"><i class="bi bi-star-fill text-warning me-1"></i>Программа лояльности</label>
+                    <div class="input-group">
+                        <input type="text" name="loyalty_card_no" class="form-control" placeholder="Номер карты 5000..." value="<?php echo e($_POST['loyalty_card_no'] ?? ''); ?>">
+                        <button type="submit" name="check_loyalty" class="btn btn-primary">Проверить</button>
+                    </div>
+
+                    <?php if ($loyalty_card): ?>
+                        <div class="mt-3 p-3 bg-white rounded-3 shadow-sm">
+                            <div class="d-flex justify-content-between">
+                                <span class="small text-muted">Уровень: <b><?php echo strtoupper($loyalty_card['level']); ?></b></span>
+                                <span class="small text-muted">Баланс: <b><?php echo number_format($loyalty_card['balance'], 0); ?> Б.</b></span>
+                            </div>
+                            <input type="hidden" name="card_id" value="<?php echo $loyalty_card['id']; ?>">
+
+                            <?php if (!$confirm_required): ?>
+                                <div class="mt-3">
+                                    <label class="form-label x-small fw-bold">Списать бонусы?</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" name="points_to_spend" class="form-control" max="<?php echo min($loyalty_card['balance'], $parcel['cost']); ?>" placeholder="Сумма списания">
+                                        <button type="submit" name="send_code" class="btn btn-warning">Получить код</button>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <div class="mt-3">
+                                    <label class="form-label x-small fw-bold text-success">Код подтверждения отправлен!</label>
+                                    <input type="hidden" name="points_spent" value="<?php echo $_POST['points_to_spend']; ?>">
+                                    <input type="text" name="confirm_code" class="form-control form-control-sm" placeholder="Введите код из личного кабинета" required>
+                                    <div class="mt-2 small">К списанию: <b><?php echo $_POST['points_to_spend']; ?> Б.</b></div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </form>
+
                 <form method="post" id="payForm">
+                    <input type="hidden" name="loyalty_card_no" value="<?php echo e($_POST['loyalty_card_no'] ?? ''); ?>">
+                    <input type="hidden" name="card_id" value="<?php echo e($_POST['card_id'] ?? ''); ?>">
+                    <input type="hidden" name="points_spent" value="<?php echo e($_POST['confirm_code'] ? ($_POST['points_spent'] ?? 0) : 0); ?>">
+                    <input type="hidden" name="confirm_code" value="<?php echo e($_POST['confirm_code'] ?? ''); ?>">
+
                     <div class="mb-4">
                         <label class="form-label fw-bold small text-uppercase">Способ оплаты</label>
                         <div class="d-flex gap-3 mb-3">
@@ -144,7 +255,11 @@ include __DIR__ . '/header.php';
                     <div class="receipt-row small mb-2"><span>СДАЧА:</span> <span><?php echo number_format((float)$_POST['cash_amount'] - (float)$parcel['cost'], 2); ?> BYN</span></div>
                 <?php endif; ?>
 
-                <div class="receipt-row border-top mt-3 pt-2"><span>ИТОГО:</span> <span class="h4 mb-0 fw-bold"><?php echo number_format($parcel['cost'], 2); ?> BYN</span></div>
+                <?php if (isset($_POST['points_spent']) && $_POST['points_spent'] > 0): ?>
+                    <div class="receipt-row small"><span>БОНУСОВ СПИСАНО:</span> <span><?php echo number_format((float)$_POST['points_spent'], 0); ?> Б.</span></div>
+                <?php endif; ?>
+
+                <div class="receipt-row border-top mt-3 pt-2"><span>ИТОГО К ОПЛАТЕ:</span> <span class="h4 mb-0 fw-bold"><?php echo number_format($parcel['cost'] - (float)($_POST['points_spent'] ?? 0), 2); ?> BYN</span></div>
                 <div class="text-center mt-5">
                     <div class="mb-3 small opacity-75">СПАСИБО, ЧТО ВЫБИРАЕТЕ НАС!</div>
                     <div class="d-print-none">

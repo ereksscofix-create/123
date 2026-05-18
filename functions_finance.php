@@ -37,3 +37,27 @@ function getShiftStats($shift_id) {
     $stmt->execute(['sid' => $shift_id]);
     return $stmt->fetchAll();
 }
+
+/**
+ * Получить карту лояльности по номеру
+ */
+function getLoyaltyCard($number) {
+    global $pdo;
+    $stmt = $pdo->prepare("SELECT * FROM loyalty_cards WHERE card_number = :n LIMIT 1");
+    $stmt->execute(['n' => $number]);
+    return $stmt->fetch();
+}
+
+/**
+ * Процент кэшбэка по уровню
+ */
+function getLoyaltyPercent($level) {
+    $lvls = [
+        'classic' => 0.03,
+        'bronze'  => 0.06,
+        'silver'  => 0.08,
+        'gold'    => 0.10,
+        'premium' => 0.20
+    ];
+    return $lvls[$level] ?? 0.03;
+}

@@ -81,7 +81,9 @@ try {
         'inv_fee' => "DECIMAL(10,2) DEFAULT 0.00",
         'stored_at' => "TIMESTAMP NULL DEFAULT NULL",
         'storage_notified' => "TINYINT(1) DEFAULT 0",
-        'return_fee' => "DECIMAL(10,2) DEFAULT 0.00"
+        'return_fee' => "DECIMAL(10,2) DEFAULT 0.00",
+        'loyalty_earned' => "DECIMAL(10,2) DEFAULT 0.00",
+        'loyalty_spent' => "DECIMAL(10,2) DEFAULT 0.00"
     ];
 
     foreach($to_add as $col => $def) {
@@ -112,7 +114,10 @@ try {
         'parcel_followers' => "id int(11) NOT NULL AUTO_INCREMENT, user_id int(11) NOT NULL, parcel_id int(11) NOT NULL, PRIMARY KEY (id), UNIQUE KEY user_parcel (user_id,parcel_id)",
         'money_transfers' => "id int(11) NOT NULL AUTO_INCREMENT, transfer_code varchar(20) NOT NULL, secret_code varchar(10) DEFAULT NULL, sender_id int(11) NOT NULL, recipient_id int(11) NOT NULL, amount decimal(10,2) NOT NULL, fee decimal(10,2) DEFAULT '0.00', status enum('pending','paid','issued','refunded') DEFAULT 'pending', payment_method varchar(20) DEFAULT NULL, receipt_no varchar(50) DEFAULT NULL, created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY (transfer_code)",
         'shifts' => "id int(11) NOT NULL AUTO_INCREMENT, worker_id int(11) NOT NULL, opened_at timestamp NULL DEFAULT CURRENT_TIMESTAMP, closed_at timestamp NULL DEFAULT NULL, is_closed tinyint(1) DEFAULT '0', PRIMARY KEY (id)",
-        'transactions' => "id int(11) NOT NULL AUTO_INCREMENT, shift_id int(11) NOT NULL, worker_id int(11) NOT NULL, type enum('income','expense') NOT NULL, category varchar(50) NOT NULL, amount decimal(10,2) NOT NULL, related_id int(11) DEFAULT NULL, created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id)"
+        'transactions' => "id int(11) NOT NULL AUTO_INCREMENT, shift_id int(11) NOT NULL, worker_id int(11) NOT NULL, type enum('income','expense') NOT NULL, category varchar(50) NOT NULL, amount decimal(10,2) NOT NULL, related_id int(11) DEFAULT NULL, created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id)",
+        'loyalty_cards' => "id int(11) NOT NULL AUTO_INCREMENT, user_id int(11) NOT NULL, card_number varchar(20) NOT NULL, level enum('classic','bronze','silver','gold','premium') DEFAULT 'classic', balance decimal(10,2) DEFAULT '0.00', payments_count int(11) DEFAULT 0, PRIMARY KEY (id), UNIQUE KEY (user_id), UNIQUE KEY (card_number)",
+        'loyalty_confirm_codes' => "id int(11) NOT NULL AUTO_INCREMENT, card_id int(11) NOT NULL, code varchar(10) NOT NULL, amount decimal(10,2) NOT NULL, expires_at timestamp NULL, PRIMARY KEY (id)",
+        'loyalty_transactions' => "id int(11) NOT NULL AUTO_INCREMENT, card_id int(11) NOT NULL, amount decimal(10,2) NOT NULL, type enum('earn','spend') NOT NULL, expires_at timestamp NULL, created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id)"
     ];
 
     foreach($new_tables as $tname => $tdef) {

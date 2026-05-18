@@ -32,6 +32,7 @@ $total_parcels = 0;
 $total_revenue = 0.0;
 $parcels = [];
 $codes = [];
+$loyalty_card = null;
 
 try {
     // ПРОВЕРКА СРОКОВ ХРАНЕНИЯ (14 дней)
@@ -126,6 +127,27 @@ try {
     $stmt->execute($params);
     $parcels = $stmt->fetchAll();
 
+    // Программа лояльности
+    $stmt = $pdo->prepare("SELECT * FROM loyalty_cards WHERE user_id = :uid");
+    $stmt->execute(['uid' => $user_id]);
+    $loyalty_card = $stmt->fetch();
+
+    // Обработка выпуска/перевыпуска карты
+    if (isset($_POST['issue_card'])) {
+        $card_number = "5000" . str_pad(rand(0, 999999999999), 12, '0', STR_PAD_LEFT);
+        if ($loyalty_card) {
+            // Перевыпуск (номер меняется, баланс и уровень остаются)
+            $stmt = $pdo->prepare("UPDATE loyalty_cards SET card_number = :cn WHERE user_id = :uid");
+            $stmt->execute(['uid' => $user_id, 'cn' => $card_number]);
+            notifyUser($user_id, "Ваша карта лояльности успешно перевыпущена. Новый номер: $card_number");
+        } else {
+            // Новый выпуск
+            $stmt = $pdo->prepare("INSERT INTO loyalty_cards (user_id, card_number, level, balance) VALUES (:uid, :cn, 'classic', 0)");
+            $stmt->execute(['uid' => $user_id, 'cn' => $card_number]);
+        }
+        header("Location: dashboard.php"); exit;
+    }
+
     // Коды выдачи
     if ($role !== 'worker') {
         $stmt = $pdo->prepare("SELECT pc.*, p.track_code FROM parcel_codes pc JOIN parcels p ON pc.parcel_id = p.id WHERE p.recipient_id = :uid AND pc.code_date = DATE(NOW())");
@@ -139,6 +161,22 @@ include __DIR__ . '/header.php';
 ?>
 
 <style>
+/* Loyalty Card Style */
+.loyalty-card {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #fff;
+    border-radius: 20px;
+    padding: 25px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+}
+.loyalty-card.bronze { background: linear-gradient(135deg, #804a00 0%, #cd7f32 100%); }
+.loyalty-card.silver { background: linear-gradient(135deg, #757575 0%, #c0c0c0 100%); color: #333; }
+.loyalty-card.gold { background: linear-gradient(135deg, #d4af37 0%, #f9d71c 100%); color: #333; }
+.loyalty-card.premium { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); border: 2px solid #f9d71c; }
+.loyalty-barcode-bg { background: #fff; padding: 10px; border-radius: 10px; display: inline-block; margin-top: 15px; }
+
 /* Custom Styles for Super Cool Optimization */
 .btn-create { background: #6f42c1; color: #fff; border: none; }
 .btn-create:hover { background: #59359a; color: #fff; }
@@ -429,6 +467,54 @@ include __DIR__ . '/header.php';
 
     <!-- 2. ПРАВАЯ ПАНЕЛЬ -->
     <div class="col-lg-4">
+        <!-- КАРТА ЛОЯЛЬНОСТИ -->
+        <div class="mb-4">
+            <?php if($loyalty_card): ?>
+                <div class="loyalty-card <?php echo $loyalty_card['level']; ?>">
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div>
+                            <div class="x-small text-uppercase fw-bold opacity-75">Карта лояльности</div>
+                            <div class="h5 fw-bold mb-0"><?php echo strtoupper($loyalty_card['level']); ?></div>
+                        </div>
+                        <i class="bi bi-cpu fs-3 opacity-50"></i>
+                    </div>
+                    <div class="mb-4">
+                        <div class="h4 mb-0 fw-bold" style="letter-spacing: 2px;">
+                            <?php echo implode(' ', str_split($loyalty_card['card_number'], 4)); ?>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-end">
+                        <div>
+                            <div class="x-small text-uppercase fw-bold opacity-75">Баланс бонусов</div>
+                            <div class="h4 fw-bold mb-0"><?php echo number_format($loyalty_card['balance'], 0); ?> Б.</div>
+                        </div>
+                        <div class="loyalty-barcode-bg">
+                            <svg id="card-barcode"></svg>
+                        </div>
+                    </div>
+                </div>
+                <form method="post" class="mt-2 text-end">
+                    <button name="issue_card" class="btn btn-link btn-sm text-white opacity-50 p-0 text-decoration-none" onclick="return confirm('Перевыпустить карту? Старый номер станет недействителен.')">Перевыпустить карту</button>
+                </form>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        JsBarcode("#card-barcode", "<?php echo $loyalty_card['card_number']; ?>", {
+                            format: "CODE128", width: 1.5, height: 35, displayValue: false, margin: 0
+                        });
+                    });
+                </script>
+            <?php else: ?>
+                <div class="card p-4 text-center border-dashed border-2">
+                    <i class="bi bi-credit-card-2-front fs-1 text-muted mb-2"></i>
+                    <h6 class="fw-bold">Программа лояльности</h6>
+                    <p class="small text-muted mb-3">Копите бонусы и оплачивайте ими до 100% стоимости посылок!</p>
+                    <form method="post">
+                        <button name="issue_card" class="btn btn-primary btn-sm rounded-pill px-4">Выпустить карту</button>
+                    </form>
+                </div>
+            <?php endif; ?>
+        </div>
+
         <div class="card border-0 shadow-sm border-start border-success border-5 rounded-4 mb-3 mb-md-4">
             <div class="card-body p-3 p-md-4 d-flex justify-content-between align-items-center">
                 <div>
