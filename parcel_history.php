@@ -46,6 +46,18 @@ include __DIR__ . '/header.php';
                 </div>
             </div>
             <div class="card-body p-4">
+                <?php
+                $last_st = $history[0]['status_text'] ?? '';
+                if (mb_stripos($last_st, 'ожидает') !== false || mb_stripos($last_st, 'прибыло') !== false):
+                ?>
+                <div class="mb-4 p-3 bg-success bg-opacity-10 rounded-4 border border-success border-opacity-20 text-center">
+                    <div class="small fw-bold text-success text-uppercase mb-2">Посылка готова к выдаче!</div>
+                    <a href="parcel_pickup_qr.php?id=<?php echo $parcel['id']; ?>" class="btn btn-success btn-sm rounded-pill px-4">
+                        <i class="bi bi-qr-code me-2"></i>Получить QR-код
+                    </a>
+                </div>
+                <?php endif; ?>
+
                 <div class="mb-4">
                     <label class="text-muted small fw-bold text-uppercase d-block mb-1">Маршрут</label>
                     <div class="d-flex align-items-center">

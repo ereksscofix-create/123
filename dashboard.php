@@ -157,7 +157,14 @@ try {
 
     // Коды выдачи
     if ($role !== 'worker') {
-        $stmt = $pdo->prepare("SELECT pc.*, p.track_code FROM parcel_codes pc JOIN parcels p ON pc.parcel_id = p.id WHERE p.recipient_id = :uid AND pc.code_date = DATE(NOW())");
+        $stmt = $pdo->prepare("
+            SELECT pc.*, p.track_code, COALESCE(s.name, s.login) as sender_name
+            FROM parcel_codes pc
+            JOIN parcels p ON pc.parcel_id = p.id
+            LEFT JOIN users s ON p.sender_id = s.id
+            WHERE p.recipient_id = :uid AND pc.code_date = DATE(NOW())
+            ORDER BY pc.id DESC
+        ");
         $stmt->execute(['uid' => $user_id]);
         $codes = $stmt->fetchAll();
     }
@@ -204,6 +211,39 @@ include __DIR__ . '/header.php';
 <a href="parcel_add.php" class="mobile-fab btn-create d-lg-none">
     <i class="bi bi-plus-lg fs-3"></i>
 </a>
+
+<!-- АКТИВНЫЕ КОДЫ ПОЛУЧЕНИЯ -->
+<?php if (!empty($codes)): ?>
+<div class="alert alert-success border-0 shadow-lg rounded-4 p-4 mb-4 animate-fade-in" style="background: rgba(6, 199, 85, 0.08); border: 1px solid rgba(6, 199, 85, 0.18) !important;">
+    <div class="d-flex align-items-start gap-3">
+        <div class="bg-success bg-opacity-25 p-3 rounded-circle d-none d-md-block"><i class="bi bi-gift-fill fs-3 text-success"></i></div>
+        <div class="flex-grow-1">
+            <h5 class="mb-3 fw-bold text-success">🎁 У вас есть посылки для получения!</h5>
+            <div class="row g-3">
+                <?php foreach ($codes as $code): ?>
+                <div class="col-md-6 col-lg-4">
+                    <div class="bg-white p-3 rounded-4 shadow-sm border h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="small text-muted mb-1">Трек: <b><?php echo e($code['track_code']); ?></b></div>
+                            <div class="small text-muted mb-2">От: <?php echo e($code['sender_name']); ?></div>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <div class="bg-primary text-white px-3 py-2 rounded-3 fw-bold flex-grow-1 text-center" style="font-family: monospace; letter-spacing: 2px; font-size: 1.2rem;">
+                                <?php echo e($code['code']); ?>
+                            </div>
+                            <a href="parcel_pickup_qr.php?id=<?php echo $code['parcel_id']; ?>" class="btn btn-outline-primary rounded-3 px-3 py-2" title="Показать QR-код">
+                                <i class="bi bi-qr-code-scan"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <div class="mt-3 x-small text-muted fw-bold text-uppercase"><i class="bi bi-info-circle me-1"></i> Коды действительны до конца сегодняшнего дня</div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php if (isset($_GET['pay_success'])): ?>
     <div class="alert alert-success border-0 shadow-lg rounded-4 p-4 mb-4 animate-fade-in">
@@ -375,7 +415,8 @@ include __DIR__ . '/header.php';
                                                     <li><a class="dropdown-item py-2 fw-bold text-primary" href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>"><i class="bi bi-download me-2"></i>ПРИНЯТЬ В ПВЗ</a></li>
                                                 <?php endif; ?>
                                                 <?php if ($role !== 'worker' && (mb_stripos($p['last_status'] ?? '', 'ожидает') !== false || mb_stripos($p['last_status'] ?? '', 'прибыло') !== false)): ?>
-                                                    <li><a class="dropdown-item py-2 fw-bold text-success" href="javascript:void(0)" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-2"></i>КОД ПОЛУЧЕНИЯ</a></li>
+                                                    <li><a class="dropdown-item py-2 fw-bold text-success" href="javascript:void(0)" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-2"></i>БЫСТРЫЙ QR</a></li>
+                                                    <li><a class="dropdown-item py-2" href="parcel_pickup_qr.php?id=<?php echo $p['id']; ?>"><i class="bi bi-file-earmark-code me-2"></i>СТРАНИЦА QR</a></li>
                                                 <?php endif; ?>
                                                 <?php if ($role === 'worker' && $p['is_paid'] && !$p['is_refunded']): ?>
                                                     <li><a class="dropdown-item py-2 text-danger" href="parcel_refund.php?id=<?php echo $p['id']; ?>"><i class="bi bi-arrow-counterclockwise me-2"></i>ВОЗВРАТ ДЕНЕГ</a></li>
@@ -468,7 +509,10 @@ include __DIR__ . '/header.php';
                                     <a href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>" class="btn btn-primary btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-download me-1"></i>ПРИНЯТЬ В ПВЗ</a>
                                 <?php endif; ?>
                                 <?php if ($role !== 'worker' && (mb_stripos($p['last_status'] ?? '', 'ожидает') !== false || mb_stripos($p['last_status'] ?? '', 'прибыло') !== false)): ?>
-                                    <button class="btn btn-success btn-sm w-100 rounded-pill fw-bold mb-2" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-1"></i>КОД ПОЛУЧЕНИЯ</button>
+                                    <div class="d-flex gap-1 mb-2">
+                                        <button class="btn btn-success btn-sm flex-grow-1 rounded-pill fw-bold" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-1"></i>QR</button>
+                                        <a href="parcel_pickup_qr.php?id=<?php echo $p['id']; ?>" class="btn btn-outline-success btn-sm rounded-pill"><i class="bi bi-box-arrow-up-right"></i></a>
+                                    </div>
                                 <?php endif; ?>
                                 <div class="d-flex gap-2">
                                     <div class="dropdown">

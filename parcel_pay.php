@@ -1,44 +1,35 @@
 <?php
 // parcel_pay.php — Оплата посылки работником
 ob_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Прячем системные ошибки
+
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/functions_finance.php';
-checkLogin();
-
-$user = currentUser();
-if (!$user || $user['role'] !== 'worker') {
-    die("Доступ запрещен. <a href='dashboard.php'>Назад</a>");
-}
-
-// Проверка открытой смены
-$shift = getOpenShift($user['id']);
-if (!$shift) {
-    include __DIR__ . '/header.php';
-    echo "<div class='alert alert-danger p-5 text-center rounded-4 shadow-sm'>
-            <i class='bi bi-exclamation-octagon display-1 d-block mb-4'></i>
-            <h3 class='fw-bold'>Смена не открыта!</h3>
-            <p>Для приема платежей необходимо сначала открыть кассовую смену.</p>
-            <a href='shift_manage.php' class='btn btn-primary rounded-pill px-5'>ОТКРЫТЬ СМЕНУ</a>
-          </div>";
-    include __DIR__ . '/footer.php';
-    exit;
-}
-
-$id = (int)($_GET['id'] ?? 0);
-if (!$id) {
-    include __DIR__ . '/header.php';
-    echo "<div class='alert alert-warning p-5 text-center rounded-4 shadow-sm'>
-            <i class='bi bi-search display-1 d-block mb-4'></i>
-            <h3 class='fw-bold'>Посылка не указана</h3>
-            <p>Не удалось найти идентификатор посылки для оплаты.</p>
-            <a href='dashboard.php' class='btn btn-light rounded-pill px-5'>В ДАШБОРД</a>
-          </div>";
-    include __DIR__ . '/footer.php';
-    exit;
-}
 
 try {
+    checkLogin();
+    $user = currentUser();
+
+    if (!$user || $user['role'] !== 'worker') {
+        throw new Exception("Доступ запрещен. Только для работников.");
+    }
+
+    // Проверка открытой смены
+    $shift = getOpenShift($user['id']);
+    if (!$shift) {
+        $error_title = "Смена не открыта!";
+        $error_text = "Для приема платежей необходимо сначала открыть кассовую смену.";
+        $error_btn = "<a href='shift_manage.php' class='btn btn-primary rounded-pill px-5'>ОТКРЫТЬ СМЕНУ</a>";
+        throw new Exception("shift_not_open");
+    }
+
+    $id = (int)($_GET['id'] ?? 0);
+    if (!$id) {
+        throw new Exception("Идентификатор посылки не указан.");
+    }
+
     $stmt = $pdo->prepare("SELECT p.*, s.name as s_name, r.name as r_name
                            FROM parcels p
                            LEFT JOIN users s ON p.sender_id = s.id
@@ -46,25 +37,30 @@ try {
                            WHERE p.id = :id");
     $stmt->execute(['id' => $id]);
     $parcel = $stmt->fetch();
+
     if (!$parcel) {
-        include __DIR__ . '/header.php';
+        throw new Exception("Посылка #$id не найдена.");
+    }
+
+} catch (Exception $e) {
+    if (ob_get_level()) ob_clean();
+    include __DIR__ . '/header.php';
+    $msg = $e->getMessage();
+    if ($msg === "shift_not_open") {
         echo "<div class='alert alert-danger p-5 text-center rounded-4 shadow-sm'>
-                <i class='bi bi-bug display-1 d-block mb-4'></i>
-                <h3 class='fw-bold'>Посылка не найдена</h3>
-                <p>К сожалению, указанная посылка отсутствует в базе данных.</p>
+                <i class='bi bi-exclamation-octagon display-1 d-block mb-4'></i>
+                <h3 class='fw-bold'>{$error_title}</h3>
+                <p>{$error_text}</p>
+                {$error_btn}
+              </div>";
+    } else {
+        echo "<div class='alert alert-warning p-5 text-center rounded-4 shadow-sm'>
+                <i class='bi bi-exclamation-triangle display-1 d-block mb-4'></i>
+                <h3 class='fw-bold'>Ошибка</h3>
+                <p>" . e($msg) . "</p>
                 <a href='dashboard.php' class='btn btn-light rounded-pill px-5'>В ДАШБОРД</a>
               </div>";
-        include __DIR__ . '/footer.php';
-        exit;
     }
-} catch (PDOException $e) {
-    include __DIR__ . '/header.php';
-    echo "<div class='alert alert-danger p-5 text-center rounded-4 shadow-sm'>
-            <i class='bi bi-database-exclamation display-1 d-block mb-4'></i>
-            <h3 class='fw-bold'>Ошибка базы данных</h3>
-            <p>" . e($e->getMessage()) . "</p>
-            <a href='dashboard.php' class='btn btn-light rounded-pill px-5'>В ДАШБОРД</a>
-          </div>";
     include __DIR__ . '/footer.php';
     exit;
 }
@@ -74,7 +70,7 @@ $error = '';
 $loyalty_card = null;
 $confirm_required = false;
 
-// Всегда подгружаем карту, если номер передан (для сохранения состояния между сабмитами)
+// Всегда подгружаем карту, если номер передан
 if (!empty($_POST['loyalty_card_no'])) {
     $loyalty_card = getLoyaltyCard($_POST['loyalty_card_no']);
 }
@@ -84,81 +80,88 @@ if (isset($_POST['check_loyalty'])) {
 }
 
 if (isset($_POST['send_code'])) {
-    $card_id = (int)$_POST['card_id'];
-    $points_to_spend = (float)$_POST['points_to_spend'];
-    $code = rand(1000, 9999);
-    $stmt = $pdo->prepare("INSERT INTO loyalty_confirm_codes (card_id, code, amount, expires_at) VALUES (:cid, :c, :a, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
-    $stmt->execute(['cid' => $card_id, 'c' => $code, 'a' => $points_to_spend]);
+    try {
+        $card_id = (int)$_POST['card_id'];
+        $points_to_spend = (float)$_POST['points_to_spend'];
+        $code = rand(1000, 9999);
+        $stmt = $pdo->prepare("INSERT INTO loyalty_confirm_codes (card_id, code, amount, expires_at) VALUES (:cid, :c, :a, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
+        $stmt->execute(['cid' => $card_id, 'c' => $code, 'a' => $points_to_spend]);
 
-    $stmt = $pdo->prepare("SELECT user_id FROM loyalty_cards WHERE id = :id");
-    $stmt->execute(['id' => $card_id]);
-    $uid = $stmt->fetchColumn();
-    notifyUser($uid, "Код подтверждения списания бонусов: $code. Сумма: $points_to_spend Б.", 'info', true);
-    $confirm_required = true;
-    $loyalty_card = getLoyaltyCard($_POST['loyalty_card_no']); // Restore card info
+        $stmt = $pdo->prepare("SELECT user_id FROM loyalty_cards WHERE id = :id");
+        $stmt->execute(['id' => $card_id]);
+        $uid = $stmt->fetchColumn();
+        notifyUser($uid, "Код подтверждения списания бонусов: $code. Сумма: $points_to_spend Б.", 'info', true);
+        $confirm_required = true;
+    } catch (Exception $e) { $error = "Ошибка при отправке кода: " . $e->getMessage(); }
 }
 
 if (isset($_POST['pay'])) {
     if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
-        $error = "Ошибка безопасности (CSRF). Пожалуйста, обновите страницу.";
+        $error = "Ошибка безопасности (CSRF). Обновите страницу.";
     } else {
-    $method = $_POST['method'] ?? 'Карта';
-    $receipt = 'RC' . date('ymd') . rand(1000, 9999);
-    $cash_in = (float)($_POST['cash_amount'] ?? 0);
-    $final_cost = (float)$parcel['cost'];
+        $method = $_POST['method'] ?? 'Карта';
+        $receipt = 'RC' . date('ymd') . rand(1000, 9999);
+        $cash_in = (float)($_POST['cash_amount'] ?? 0);
+        $final_cost = (float)$parcel['cost'];
 
-    $points_spent = (float)($_POST['points_spent'] ?? 0);
-    $conf_code = trim($_POST['confirm_code'] ?? '');
+        $points_spent = (float)($_POST['points_spent'] ?? 0);
+        $conf_code = trim($_POST['confirm_code'] ?? '');
 
-    try {
-        if ($points_spent > 0) {
-            $card_id = (int)$_POST['card_id'];
-            $stmt = $pdo->prepare("SELECT * FROM loyalty_confirm_codes WHERE card_id = :cid AND code = :code AND amount = :amt AND expires_at > NOW() LIMIT 1");
-            $stmt->execute(['cid' => $card_id, 'code' => $conf_code, 'amt' => $points_spent]);
-            if (!$stmt->fetch()) {
-                throw new Exception("Неверный или истекший код подтверждения бонусов.");
+        try {
+            $pdo->beginTransaction();
+
+            if ($points_spent > 0) {
+                $card_id = (int)$_POST['card_id'];
+                $stmt = $pdo->prepare("SELECT * FROM loyalty_confirm_codes WHERE card_id = :cid AND code = :code AND amount = :amt AND expires_at > NOW() LIMIT 1");
+                $stmt->execute(['cid' => $card_id, 'code' => $conf_code, 'amt' => $points_spent]);
+                if (!$stmt->fetch()) {
+                    throw new Exception("Неверный или истекший код подтверждения бонусов.");
+                }
+                $final_cost -= $points_spent;
+                if ($final_cost < 0) $final_cost = 0;
+
+                // Списываем бонусы
+                $stmt = $pdo->prepare("UPDATE loyalty_cards SET balance = balance - :pts WHERE id = :cid");
+                $stmt->execute(['pts' => $points_spent, 'cid' => $card_id]);
+
+                $pdo->prepare("INSERT INTO loyalty_transactions (card_id, amount, type) VALUES (:cid, :amt, 'spend')")
+                    ->execute(['cid' => $card_id, 'amt' => $points_spent]);
             }
-            $final_cost -= $points_spent;
-            if ($final_cost < 0) $final_cost = 0;
 
-            // Списываем бонусы
-            $stmt = $pdo->prepare("UPDATE loyalty_cards SET balance = balance - :pts WHERE id = :cid");
-            $stmt->execute(['pts' => $points_spent, 'cid' => $card_id]);
+            // Начисляем бонусы если карта указана
+            $earned = 0;
+            if (!empty($_POST['loyalty_card_no'])) {
+                $l_card = getLoyaltyCard($_POST['loyalty_card_no']);
+                if ($l_card) {
+                    $pct = getLoyaltyPercent($l_card['level']);
+                    $earned = $final_cost * $pct;
 
-            $pdo->prepare("INSERT INTO loyalty_transactions (card_id, amount, type) VALUES (:cid, :amt, 'spend')")
-                ->execute(['cid' => $card_id, 'amt' => $points_spent]);
-        }
+                    $stmt = $pdo->prepare("UPDATE loyalty_cards SET balance = balance + :e, payments_count = payments_count + 1 WHERE id = :cid");
+                    $stmt->execute(['e' => $earned, 'cid' => $l_card['id']]);
 
-        // Начисляем бонусы если карта указана
-        $earned = 0;
-        if (!empty($_POST['loyalty_card_no'])) {
-            $l_card = getLoyaltyCard($_POST['loyalty_card_no']);
-            if ($l_card) {
-                $pct = getLoyaltyPercent($l_card['level']);
-                $earned = $final_cost * $pct;
+                    $pdo->prepare("INSERT INTO loyalty_transactions (card_id, amount, type, expires_at) VALUES (:cid, :amt, 'earn', DATE_ADD(NOW(), INTERVAL 1 YEAR))")
+                        ->execute(['cid' => $l_card['id'], 'amt' => $earned]);
 
-                $stmt = $pdo->prepare("UPDATE loyalty_cards SET balance = balance + :e, payments_count = payments_count + 1 WHERE id = :cid");
-                $stmt->execute(['e' => $earned, 'cid' => $l_card['id']]);
-
-                $pdo->prepare("INSERT INTO loyalty_transactions (card_id, amount, type, expires_at) VALUES (:cid, :amt, 'earn', DATE_ADD(NOW(), INTERVAL 1 YEAR))")
-                    ->execute(['cid' => $l_card['id'], 'amt' => $earned]);
-
-                updateLoyaltyLevel($l_card['id']);
+                    updateLoyaltyLevel($l_card['id']);
+                }
             }
+
+            $stmt = $pdo->prepare("UPDATE parcels SET is_paid = 1, payment_method = :m, receipt_no = :r, loyalty_earned = :e, loyalty_spent = :s WHERE id = :id");
+            $stmt->execute(['m' => $method, 'r' => $receipt, 'e' => $earned, 's' => $points_spent, 'id' => $id]);
+
+            logTransaction($shift['id'], $user['id'], 'income', 'Услуги связи', $final_cost, $id);
+
+            $status_text = "Оплачено ($method, №$receipt). Бонусы: -$points_spent / +$earned [" . date('d.m.Y H:i') . "]";
+            $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
+            $stmt->execute(['pid' => $id, 'txt' => $status_text]);
+
+            $pdo->commit();
+            header("Location: dashboard.php?pay_success=1&id=$id");
+            exit;
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            $error = $e->getMessage();
         }
-
-        $stmt = $pdo->prepare("UPDATE parcels SET is_paid = 1, payment_method = :m, receipt_no = :r, loyalty_earned = :e, loyalty_spent = :s WHERE id = :id");
-        $stmt->execute(['m' => $method, 'r' => $receipt, 'e' => $earned, 's' => $points_spent, 'id' => $id]);
-
-        logTransaction($shift['id'], $user['id'], 'income', 'Услуги связи', $final_cost, $id);
-
-        $status_text = "Оплачено ($method, №$receipt). Бонусы: -$points_spent / +$earned [" . date('d.m.Y H:i') . "]";
-        $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
-        $stmt->execute(['pid' => $id, 'txt' => $status_text]);
-
-        header("Location: dashboard.php?pay_success=1&id=$id");
-        exit;
-    } catch (Exception $e) { $error = $e->getMessage(); }
     }
 }
 
@@ -192,6 +195,8 @@ include __DIR__ . '/header.php';
 
                 <form method="post" id="unifiedPayForm">
                     <?php echo csrfInput(); ?>
+                    <input type="hidden" name="card_id" value="<?php echo $loyalty_card['id'] ?? ''; ?>">
+
                     <!-- Секция лояльности -->
                     <div class="mb-4 p-3 bg-light rounded-3 border border-primary border-opacity-10">
                         <label class="form-label fw-bold small text-uppercase"><i class="bi bi-star-fill text-warning me-1"></i>Программа лояльности</label>
@@ -206,7 +211,6 @@ include __DIR__ . '/header.php';
                                     <span class="small text-muted">Уровень: <b><?php echo strtoupper($loyalty_card['level']); ?></b></span>
                                     <span class="small text-muted">Баланс: <b><?php echo number_format($loyalty_card['balance'], 2); ?> Б.</b></span>
                                 </div>
-                                <input type="hidden" name="card_id" value="<?php echo $loyalty_card['id']; ?>">
 
                                 <?php if (!$confirm_required && empty($_POST['confirm_code'])): ?>
                                     <div class="mt-3">
@@ -251,7 +255,6 @@ include __DIR__ . '/header.php';
                     <div class="mb-4 border p-3 rounded-3 bg-light">
                         <label class="form-label fw-bold small text-uppercase text-muted d-block mb-1">Номер чека (Авто)</label>
                         <div class="h5 mb-0 fw-bold">RC<?php echo date('ymd'); ?>XXXX</div>
-                        <div class="form-text">Номер будет сгенерирован автоматически после подтверждения.</div>
                     </div>
 
                     <button type="submit" name="pay" class="btn btn-success btn-lg w-100 rounded-pill py-3 fw-bold text-uppercase shadow-sm">
@@ -273,58 +276,8 @@ include __DIR__ . '/header.php';
                 </script>
             </div>
         </div>
-        <?php else: ?>
-        <!-- ЧЕК ОБ ОПЛАТЕ -->
-        <div class="receipt-container">
-            <div class="receipt shadow-lg">
-                <div class="text-center mb-4 border-bottom pb-3">
-                    <h3 class="fw-bold mb-0">EHPST POST</h3>
-                    <div class="small text-muted">Квитанция об оплате услуг связи</div>
-                </div>
-                <div class="receipt-row"><span>НОМЕР ТРЕКА:</span> <strong><?php echo e($parcel['track_code']); ?></strong></div>
-                <div class="receipt-row"><span>ДАТА:</span> <strong><?php echo date('d.m.Y H:i:s'); ?></strong></div>
-                <div class="receipt-row"><span>ОПЕРАЦИЯ №:</span> <strong><?php echo e($parcel['receipt_no'] ?? '---'); ?></strong></div>
-                <div class="receipt-row border-bottom mb-2 pb-2"><span>ТИП:</span> <strong>ОПЛАТА (<?php echo e($parcel['payment_method'] ?? 'Карта'); ?>)</strong></div>
-
-                <div class="receipt-row"><span>ОТПРАВИТЕЛЬ:</span> <strong><?php echo e($parcel['s_name']); ?></strong></div>
-                <div class="receipt-row border-bottom mb-2 pb-2"><span>ПОЛУЧАТЕЛЬ:</span> <strong><?php echo e($parcel['r_name']); ?></strong></div>
-
-                <?php if(isset($_POST['method']) && $_POST['method'] === 'Наличные'): ?>
-                    <div class="receipt-row small"><span>ПРИНЯТО:</span> <span><?php echo number_format((float)$_POST['cash_amount'], 2); ?> BYN</span></div>
-                    <div class="receipt-row small mb-2"><span>СДАЧА:</span> <span><?php echo number_format((float)$_POST['cash_amount'] - (float)$parcel['cost'], 2); ?> BYN</span></div>
-                <?php endif; ?>
-
-                <?php if (isset($_POST['points_spent']) && $_POST['points_spent'] > 0): ?>
-                    <div class="receipt-row small"><span>БОНУСОВ СПИСАНО:</span> <span><?php echo number_format((float)$_POST['points_spent'], 2); ?> Б.</span></div>
-                <?php endif; ?>
-
-                <div class="receipt-row border-top mt-3 pt-2"><span>ИТОГО К ОПЛАТЕ:</span> <span class="h4 mb-0 fw-bold"><?php echo number_format($parcel['cost'] - (float)($_POST['points_spent'] ?? 0), 2); ?> BYN</span></div>
-                <div class="text-center mt-5">
-                    <div class="mb-3 small opacity-75">СПАСИБО, ЧТО ВЫБИРАЕТЕ НАС!</div>
-                    <div class="d-print-none">
-                        <button class="btn btn-primary rounded-pill px-4" onclick="window.print()"><i class="bi bi-printer me-2"></i>Печать чека</button>
-                        <a href="dashboard.php" class="btn btn-light rounded-pill px-4 ms-2">В дашборд</a>
-                    </div>
-                </div>
-            </div>
-        </div>
         <?php endif; ?>
     </div>
 </div>
-
-<style>
-.receipt-container { display: flex; justify-content: center; }
-.receipt { background: #fff; width: 100%; max-width: 400px; padding: 40px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; position: relative; }
-.receipt::before, .receipt::after { content: ""; position: absolute; left: 0; right: 0; height: 10px; background-size: 20px 20px; background-repeat: repeat-x; }
-.receipt::before { top: -10px; background-image: radial-gradient(circle at 10px 15px, #fff 10px, transparent 11px); }
-.receipt::after { bottom: -10px; background-image: radial-gradient(circle at 10px -5px, #fff 10px, transparent 11px); }
-.receipt-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
-@media print {
-    body * { visibility: hidden; }
-    .receipt, .receipt * { visibility: visible; }
-    .receipt { position: absolute; left: 0; top: 0; margin: 0; box-shadow: none; width: 100%; }
-    .d-print-none { display: none !important; }
-}
-</style>
 
 <?php include __DIR__ . '/footer.php'; ?>

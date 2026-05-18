@@ -66,6 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($sender_id <= 0 || $recipient_id <= 0 || empty($address)) {
         $error = "Пожалуйста, заполните все обязательные поля.";
+    } elseif ($sender_id === $recipient_id) {
+        $error = "Вы не можете отправить посылку самому себе.";
     } else {
         try {
             $stmt = $pdo->prepare("SELECT id FROM users WHERE id = :sid OR id = :rid");
@@ -154,11 +156,12 @@ include __DIR__ . '/header.php';
                     <?php echo csrfInput(); ?>
                     <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">ID Отправителя</label>
-                        <input type="number" name="sender_id" class="form-control form-control-lg rounded-3" value="<?php echo (int)$user['id']; ?>" required>
+                        <input type="number" name="sender_id" id="sender_id" class="form-control form-control-lg rounded-3" value="<?php echo (int)$user['id']; ?>" required oninput="validateSelfSend()">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">ID Получателя</label>
-                        <input type="number" name="recipient_id" class="form-control form-control-lg rounded-3" required placeholder="Введите ID">
+                        <input type="number" name="recipient_id" id="recipient_id" class="form-control form-control-lg rounded-3" required placeholder="Введите ID" oninput="validateSelfSend()">
+                        <div id="selfSendError" class="text-danger x-small fw-bold mt-1" style="display:none;">Вы не можете отправить посылку самому себе!</div>
                     </div>
 
                     <div class="col-md-6">
@@ -305,6 +308,19 @@ document.addEventListener('DOMContentLoaded', function() {
     dvInput.addEventListener('input', calculate);
     calculate();
 });
+
+function validateSelfSend() {
+    const sid = document.getElementById('sender_id').value;
+    const rid = document.getElementById('recipient_id').value;
+    const err = document.getElementById('selfSendError');
+    if (sid && rid && sid === rid) {
+        err.style.display = 'block';
+        document.getElementById('recipient_id').classList.add('is-invalid');
+    } else {
+        err.style.display = 'none';
+        document.getElementById('recipient_id').classList.remove('is-invalid');
+    }
+}
 
 function toggleAddress(val) {
     const col = document.getElementById('addressCol');
