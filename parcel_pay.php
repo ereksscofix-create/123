@@ -1,19 +1,42 @@
 <?php
 // parcel_pay.php — Оплата посылки работником
+ob_start();
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/functions_finance.php';
 checkLogin();
 
 $user = currentUser();
-if (!$user || $user['role'] !== 'worker') die("Доступ запрещен.");
+if (!$user || $user['role'] !== 'worker') {
+    die("Доступ запрещен. <a href='dashboard.php'>Назад</a>");
+}
 
 // Проверка открытой смены
 $shift = getOpenShift($user['id']);
-if (!$shift) die("Ошибка: Смена не открыта. <a href='shift_manage.php'>ОТКРЫТЬ СМЕНУ</a>");
+if (!$shift) {
+    include __DIR__ . '/header.php';
+    echo "<div class='alert alert-danger p-5 text-center rounded-4 shadow-sm'>
+            <i class='bi bi-exclamation-octagon display-1 d-block mb-4'></i>
+            <h3 class='fw-bold'>Смена не открыта!</h3>
+            <p>Для приема платежей необходимо сначала открыть кассовую смену.</p>
+            <a href='shift_manage.php' class='btn btn-primary rounded-pill px-5'>ОТКРЫТЬ СМЕНУ</a>
+          </div>";
+    include __DIR__ . '/footer.php';
+    exit;
+}
 
 $id = (int)($_GET['id'] ?? 0);
-if (!$id) die("ID посылки не указан.");
+if (!$id) {
+    include __DIR__ . '/header.php';
+    echo "<div class='alert alert-warning p-5 text-center rounded-4 shadow-sm'>
+            <i class='bi bi-search display-1 d-block mb-4'></i>
+            <h3 class='fw-bold'>Посылка не указана</h3>
+            <p>Не удалось найти идентификатор посылки для оплаты.</p>
+            <a href='dashboard.php' class='btn btn-light rounded-pill px-5'>В ДАШБОРД</a>
+          </div>";
+    include __DIR__ . '/footer.php';
+    exit;
+}
 
 try {
     $stmt = $pdo->prepare("SELECT p.*, s.name as s_name, r.name as r_name
@@ -23,8 +46,28 @@ try {
                            WHERE p.id = :id");
     $stmt->execute(['id' => $id]);
     $parcel = $stmt->fetch();
-    if (!$parcel) die("Посылка не найдена.");
-} catch (PDOException $e) { die("Ошибка БД: " . $e->getMessage()); }
+    if (!$parcel) {
+        include __DIR__ . '/header.php';
+        echo "<div class='alert alert-danger p-5 text-center rounded-4 shadow-sm'>
+                <i class='bi bi-bug display-1 d-block mb-4'></i>
+                <h3 class='fw-bold'>Посылка не найдена</h3>
+                <p>К сожалению, указанная посылка отсутствует в базе данных.</p>
+                <a href='dashboard.php' class='btn btn-light rounded-pill px-5'>В ДАШБОРД</a>
+              </div>";
+        include __DIR__ . '/footer.php';
+        exit;
+    }
+} catch (PDOException $e) {
+    include __DIR__ . '/header.php';
+    echo "<div class='alert alert-danger p-5 text-center rounded-4 shadow-sm'>
+            <i class='bi bi-database-exclamation display-1 d-block mb-4'></i>
+            <h3 class='fw-bold'>Ошибка базы данных</h3>
+            <p>" . e($e->getMessage()) . "</p>
+            <a href='dashboard.php' class='btn btn-light rounded-pill px-5'>В ДАШБОРД</a>
+          </div>";
+    include __DIR__ . '/footer.php';
+    exit;
+}
 
 $success = false;
 $error = '';
@@ -56,7 +99,9 @@ if (isset($_POST['send_code'])) {
 }
 
 if (isset($_POST['pay'])) {
-    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) die("CSRF validation failed.");
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = "Ошибка безопасности (CSRF). Пожалуйста, обновите страницу.";
+    } else {
     $method = $_POST['method'] ?? 'Карта';
     $receipt = 'RC' . date('ymd') . rand(1000, 9999);
     $cash_in = (float)($_POST['cash_amount'] ?? 0);
@@ -114,6 +159,7 @@ if (isset($_POST['pay'])) {
         header("Location: dashboard.php?pay_success=1&id=$id");
         exit;
     } catch (Exception $e) { $error = $e->getMessage(); }
+    }
 }
 
 $page_title = "Оплата " . $parcel['track_code'];

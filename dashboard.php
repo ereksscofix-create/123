@@ -374,7 +374,7 @@ include __DIR__ . '/header.php';
                                                 <?php if ($role === 'worker' && $p['pickup_point'] && !$p['shelf']): ?>
                                                     <li><a class="dropdown-item py-2 fw-bold text-primary" href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>"><i class="bi bi-download me-2"></i>ПРИНЯТЬ В ПВЗ</a></li>
                                                 <?php endif; ?>
-                                                <?php if ($role !== 'worker' && mb_stripos($p['last_status'], 'ожидает') !== false): ?>
+                                                <?php if ($role !== 'worker' && (mb_stripos($p['last_status'] ?? '', 'ожидает') !== false || mb_stripos($p['last_status'] ?? '', 'прибыло') !== false)): ?>
                                                     <li><a class="dropdown-item py-2 fw-bold text-success" href="javascript:void(0)" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-2"></i>КОД ПОЛУЧЕНИЯ</a></li>
                                                 <?php endif; ?>
                                                 <?php if ($role === 'worker' && $p['is_paid'] && !$p['is_refunded']): ?>
@@ -467,7 +467,7 @@ include __DIR__ . '/header.php';
                                 <?php if ($role === 'worker' && $p['pickup_point'] && !$p['shelf']): ?>
                                     <a href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>" class="btn btn-primary btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-download me-1"></i>ПРИНЯТЬ В ПВЗ</a>
                                 <?php endif; ?>
-                                <?php if ($role !== 'worker' && mb_stripos($p['last_status'], 'ожидает') !== false): ?>
+                                <?php if ($role !== 'worker' && (mb_stripos($p['last_status'] ?? '', 'ожидает') !== false || mb_stripos($p['last_status'] ?? '', 'прибыло') !== false)): ?>
                                     <button class="btn btn-success btn-sm w-100 rounded-pill fw-bold mb-2" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-1"></i>КОД ПОЛУЧЕНИЯ</button>
                                 <?php endif; ?>
                                 <div class="d-flex gap-2">
@@ -538,20 +538,26 @@ include __DIR__ . '/header.php';
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
-                <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-                <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        new QRCode(document.getElementById("card-qr"), {
-                            text: "<?php echo $loyalty_card['card_number']; ?>",
-                            width: 60,
-                            height: 60,
-                            colorDark : "#000000",
-                            colorLight : "#ffffff",
-                            correctLevel : QRCode.CorrectLevel.H
-                        });
+            <?php endif; ?>
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+        <?php if($loyalty_card): ?>
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    new QRCode(document.getElementById("card-qr"), {
+                        text: "<?php echo $loyalty_card['card_number']; ?>",
+                        width: 60,
+                        height: 60,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
                     });
-                </script>
-            <?php else: ?>
+                });
+            </script>
+        <?php endif; ?>
+
+        <?php if(!$loyalty_card): ?>
                 <div class="card p-4 text-center border-dashed border-2">
                     <i class="bi bi-credit-card-2-front fs-1 text-muted mb-2"></i>
                     <h6 class="fw-bold">Программа лояльности</h6>
