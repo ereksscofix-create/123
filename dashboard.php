@@ -33,6 +33,7 @@ $total_revenue = 0.0;
 $parcels = [];
 $codes = [];
 $loyalty_card = null;
+$loyalty_history = [];
 
 try {
     // ПРОВЕРКА СРОКОВ ХРАНЕНИЯ (14 дней)
@@ -131,6 +132,12 @@ try {
     $stmt = $pdo->prepare("SELECT * FROM loyalty_cards WHERE user_id = :uid");
     $stmt->execute(['uid' => $user_id]);
     $loyalty_card = $stmt->fetch();
+
+    if ($loyalty_card) {
+        $stmt = $pdo->prepare("SELECT * FROM loyalty_transactions WHERE card_id = :cid ORDER BY id DESC LIMIT 5");
+        $stmt->execute(['cid' => $loyalty_card['id']]);
+        $loyalty_history = $stmt->fetchAll();
+    }
 
     // Обработка выпуска/перевыпуска карты
     if (isset($_POST['issue_card'])) {
@@ -501,20 +508,40 @@ include __DIR__ . '/header.php';
                     <div class="d-flex justify-content-between align-items-end">
                         <div>
                             <div class="x-small text-uppercase fw-bold opacity-75">Баланс бонусов</div>
-                            <div class="h4 fw-bold mb-0"><?php echo number_format($loyalty_card['balance'], 0); ?> Б.</div>
+                            <div class="h4 fw-bold mb-0"><?php echo number_format($loyalty_card['balance'], 2); ?> Б.</div>
                         </div>
-                        <div class="loyalty-barcode-bg">
-                            <svg id="card-barcode"></svg>
+                        <div class="loyalty-barcode-bg" style="padding: 5px;">
+                            <div id="card-qr"></div>
                         </div>
                     </div>
                 </div>
                 <form method="post" class="mt-2 text-end">
                     <button name="issue_card" class="btn btn-link btn-sm text-white opacity-50 p-0 text-decoration-none" onclick="return confirm('Перевыпустить карту? Старый номер станет недействителен.')">Перевыпустить карту</button>
                 </form>
+
+                <?php if ($loyalty_history): ?>
+                    <div class="mt-4 pt-3 border-top border-white border-opacity-10">
+                        <div class="x-small text-uppercase fw-bold mb-2 opacity-75">Последние бонусы</div>
+                        <?php foreach ($loyalty_history as $lh): ?>
+                            <div class="d-flex justify-content-between align-items-center mb-1 x-small">
+                                <span class="opacity-75"><?php echo date('d.m', strtotime($lh['created_at'])); ?> — <?php echo $lh['type'] === 'earn' ? 'Начисление' : 'Списание'; ?></span>
+                                <span class="fw-bold <?php echo $lh['type'] === 'earn' ? 'text-success' : 'text-danger'; ?>">
+                                    <?php echo $lh['type'] === 'earn' ? '+' : '-'; ?><?php echo number_format($lh['amount'], 2); ?>
+                                </span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
                 <script>
                     document.addEventListener('DOMContentLoaded', function() {
-                        JsBarcode("#card-barcode", "<?php echo $loyalty_card['card_number']; ?>", {
-                            format: "CODE128", width: 1.5, height: 35, displayValue: false, margin: 0
+                        new QRCode(document.getElementById("card-qr"), {
+                            text: "<?php echo $loyalty_card['card_number']; ?>",
+                            width: 60,
+                            height: 60,
+                            colorDark : "#000000",
+                            colorLight : "#ffffff",
+                            correctLevel : QRCode.CorrectLevel.H
                         });
                     });
                 </script>

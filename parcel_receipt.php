@@ -91,13 +91,13 @@ include __DIR__ . '/header.php';
                         <?php if($parcel['loyalty_spent'] > 0): ?>
                         <tr class="text-danger">
                             <td class="py-1 fw-bold">Списание бонусов</td>
-                            <td class="text-end py-1 fw-bold">-<?php echo number_format($parcel['loyalty_spent'], 0); ?></td>
+                            <td class="text-end py-1 fw-bold">-<?php echo number_format($parcel['loyalty_spent'], 2); ?></td>
                         </tr>
                         <?php endif; ?>
                         <?php if($parcel['loyalty_earned'] > 0): ?>
                         <tr class="text-success">
                             <td class="py-1 fw-bold">Начислено бонусов</td>
-                            <td class="text-end py-1 fw-bold">+<?php echo number_format($parcel['loyalty_earned'], 0); ?></td>
+                            <td class="text-end py-1 fw-bold">+<?php echo number_format($parcel['loyalty_earned'], 2); ?></td>
                         </tr>
                         <?php endif; ?>
                         <?php if($parcel['loyalty_spent'] > 0): ?>

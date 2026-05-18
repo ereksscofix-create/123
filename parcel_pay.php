@@ -31,9 +31,12 @@ $error = '';
 $loyalty_card = null;
 $confirm_required = false;
 
+// Всегда подгружаем карту, если номер передан (для сохранения состояния между сабмитами)
+if (!empty($_POST['loyalty_card_no'])) {
+    $loyalty_card = getLoyaltyCard($_POST['loyalty_card_no']);
+}
+
 if (isset($_POST['check_loyalty'])) {
-    $card_no = trim($_POST['loyalty_card_no'] ?? '');
-    $loyalty_card = getLoyaltyCard($card_no);
     if (!$loyalty_card) $error = "Карта лояльности не найдена.";
 }
 

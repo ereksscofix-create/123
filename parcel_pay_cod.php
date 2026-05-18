@@ -32,9 +32,11 @@ $error = '';
 $loyalty_card = null;
 $confirm_required = false;
 
+if (!empty($_POST['loyalty_card_no'])) {
+    $loyalty_card = getLoyaltyCard($_POST['loyalty_card_no']);
+}
+
 if (isset($_POST['check_loyalty'])) {
-    $card_no = trim($_POST['loyalty_card_no'] ?? '');
-    $loyalty_card = getLoyaltyCard($card_no);
     if (!$loyalty_card) $error = "Карта лояльности не найдена.";
 }
 
@@ -73,6 +75,9 @@ if (isset($_POST['pay'])) {
 
             $stmt = $pdo->prepare("UPDATE loyalty_cards SET balance = balance - :pts WHERE id = :cid");
             $stmt->execute(['pts' => $points_spent, 'cid' => $card_id]);
+
+            $pdo->prepare("INSERT INTO loyalty_transactions (card_id, amount, type) VALUES (:cid, :amt, 'spend')")
+                ->execute(['cid' => $card_id, 'amt' => $points_spent]);
         }
 
         $earned = 0;
@@ -99,15 +104,6 @@ if (isset($_POST['pay'])) {
 
         $status_text = "Оплачен наложенный платеж ($method, №$receipt). Бонусы: -$points_spent / +$earned [" . date('d.m.Y H:i') . "] (Кассир: " . ($user['name'] ?: $user['login']) . ")";
 
-        // Логируем начисление/списание бонусов
-        if ($points_spent > 0) {
-            $pdo->prepare("INSERT INTO loyalty_transactions (card_id, amount, type) VALUES (:cid, :amt, 'spend')")
-                ->execute(['cid' => $loyalty_card['id'], 'amt' => $points_spent]);
-        }
-        if ($earned > 0) {
-            $pdo->prepare("INSERT INTO loyalty_transactions (card_id, amount, type, expires_at) VALUES (:cid, :amt, 'earn', DATE_ADD(NOW(), INTERVAL 1 YEAR))")
-                ->execute(['cid' => $loyalty_card['id'], 'amt' => $earned]);
-        }
         $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
         $stmt->execute(['pid' => $id, 'txt' => $status_text]);
 

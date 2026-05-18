@@ -43,6 +43,8 @@ function getShiftStats($shift_id) {
  */
 function getLoyaltyCard($number) {
     global $pdo;
+    // Очищаем номер от лишних символов
+    $number = preg_replace('/[^0-9]/', '', $number);
     $stmt = $pdo->prepare("SELECT * FROM loyalty_cards WHERE card_number = :n LIMIT 1");
     $stmt->execute(['n' => $number]);
     return $stmt->fetch();
