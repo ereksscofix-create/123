@@ -83,6 +83,10 @@ if (isset($_POST['send_code'])) {
     try {
         $card_id = (int)$_POST['card_id'];
         $points_to_spend = (float)$_POST['points_to_spend'];
+
+        // Очистка старых кодов
+        $pdo->prepare("DELETE FROM loyalty_confirm_codes WHERE card_id = :cid")->execute(['cid' => $card_id]);
+
         $code = rand(1000, 9999);
         $stmt = $pdo->prepare("INSERT INTO loyalty_confirm_codes (card_id, code, amount, expires_at) VALUES (:cid, :c, :a, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
         $stmt->execute(['cid' => $card_id, 'c' => $code, 'a' => $points_to_spend]);
@@ -106,12 +110,12 @@ if (isset($_POST['pay'])) {
 
         $points_spent = (float)($_POST['points_spent'] ?? 0);
         $conf_code = trim($_POST['confirm_code'] ?? '');
+        $card_id = (int)($_POST['card_id'] ?? 0);
 
         try {
             $pdo->beginTransaction();
 
-            if ($points_spent > 0) {
-                $card_id = (int)$_POST['card_id'];
+            if ($points_spent > 0 && $card_id > 0) {
                 $stmt = $pdo->prepare("SELECT * FROM loyalty_confirm_codes WHERE card_id = :cid AND code = :code AND amount = :amt AND expires_at > NOW() LIMIT 1");
                 $stmt->execute(['cid' => $card_id, 'code' => $conf_code, 'amt' => $points_spent]);
                 if (!$stmt->fetch()) {
@@ -119,6 +123,14 @@ if (isset($_POST['pay'])) {
                 }
                 $final_cost -= $points_spent;
                 if ($final_cost < 0) $final_cost = 0;
+
+                // Проверяем баланс перед списанием
+                $stmt = $pdo->prepare("SELECT balance FROM loyalty_cards WHERE id = :cid");
+                $stmt->execute(['cid' => $card_id]);
+                $curr_bal = (float)$stmt->fetchColumn();
+                if ($curr_bal < $points_spent) {
+                    throw new Exception("Недостаточно бонусов на карте.");
+                }
 
                 // Списываем бонусы
                 $stmt = $pdo->prepare("UPDATE loyalty_cards SET balance = balance - :pts WHERE id = :cid");
@@ -146,7 +158,7 @@ if (isset($_POST['pay'])) {
                 }
             }
 
-            $stmt = $pdo->prepare("UPDATE parcels SET is_paid = 1, payment_method = :m, receipt_no = :r, loyalty_earned = :e, loyalty_spent = :s WHERE id = :id");
+            $stmt = $pdo->prepare("UPDATE parcels SET is_paid = 1, payment_method = :m, receipt_no = :r, loyalty_earned = loyalty_earned + :e, loyalty_spent = loyalty_spent + :s WHERE id = :id");
             $stmt->execute(['m' => $method, 'r' => $receipt, 'e' => $earned, 's' => $points_spent, 'id' => $id]);
 
             logTransaction($shift['id'], $user['id'], 'income', 'Услуги связи', $final_cost, $id);
@@ -223,9 +235,9 @@ include __DIR__ . '/header.php';
                                 <?php else: ?>
                                     <div class="mt-3">
                                         <label class="form-label x-small fw-bold text-success"><?php echo $confirm_required ? 'Код подтверждения отправлен!' : 'Бонусы готовы к списанию'; ?></label>
-                                        <input type="hidden" name="points_spent" value="<?php echo $_POST['points_to_spend'] ?? $_POST['points_spent']; ?>">
+                                        <input type="hidden" name="points_spent" value="<?php echo e($_POST['points_to_spend'] ?? $_POST['points_spent'] ?? 0); ?>">
                                         <input type="text" name="confirm_code" class="form-control form-control-sm" placeholder="Введите код из личного кабинета" required value="<?php echo e($_POST['confirm_code'] ?? ''); ?>">
-                                        <div class="mt-2 small">К списанию: <b><?php echo number_format($_POST['points_to_spend'] ?? $_POST['points_spent'], 2); ?> Б.</b></div>
+                                        <div class="mt-2 small">К списанию: <b><?php echo number_format((float)($_POST['points_to_spend'] ?? $_POST['points_spent'] ?? 0), 2); ?> Б.</b></div>
                                     </div>
                                 <?php endif; ?>
                             </div>

@@ -49,6 +49,10 @@ if (isset($_POST['check_loyalty'])) {
 if (isset($_POST['send_code'])) {
     $card_id = (int)$_POST['card_id'];
     $points_to_spend = (float)$_POST['points_to_spend'];
+
+    // Очистка старых кодов
+    $pdo->prepare("DELETE FROM loyalty_confirm_codes WHERE card_id = :cid")->execute(['cid' => $card_id]);
+
     $code = rand(1000, 9999);
     $stmt = $pdo->prepare("INSERT INTO loyalty_confirm_codes (card_id, code, amount, expires_at) VALUES (:cid, :c, :a, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
     $stmt->execute(['cid' => $card_id, 'c' => $code, 'a' => $points_to_spend]);
@@ -67,11 +71,12 @@ if (isset($_POST['pay'])) {
     $receipt = 'CD' . date('ymd') . rand(1000, 9999);
     $points_spent = (float)($_POST['points_spent'] ?? 0);
     $conf_code = trim($_POST['confirm_code'] ?? '');
+    $card_id = (int)($_POST['card_id'] ?? 0);
     $final_cod = (float)$parcel['cod'];
 
     try {
-        if ($points_spent > 0) {
-            $card_id = (int)$_POST['card_id'];
+        $pdo->beginTransaction();
+        if ($points_spent > 0 && $card_id > 0) {
             $stmt = $pdo->prepare("SELECT * FROM loyalty_confirm_codes WHERE card_id = :cid AND code = :code AND amount = :amt AND expires_at > NOW() LIMIT 1");
             $stmt->execute(['cid' => $card_id, 'code' => $conf_code, 'amt' => $points_spent]);
             if (!$stmt->fetch()) {
@@ -79,6 +84,12 @@ if (isset($_POST['pay'])) {
             }
             $final_cod -= $points_spent;
             if ($final_cod < 0) $final_cod = 0;
+
+            // Проверка баланса
+            $stmt = $pdo->prepare("SELECT balance FROM loyalty_cards WHERE id = :cid");
+            $stmt->execute(['cid' => $card_id]);
+            $curr_bal = (float)$stmt->fetchColumn();
+            if ($curr_bal < $points_spent) throw new Exception("Недостаточно бонусов.");
 
             $stmt = $pdo->prepare("UPDATE loyalty_cards SET balance = balance - :pts WHERE id = :cid");
             $stmt->execute(['pts' => $points_spent, 'cid' => $card_id]);
@@ -115,13 +126,18 @@ if (isset($_POST['pay'])) {
         $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
         $stmt->execute(['pid' => $id, 'txt' => $status_text]);
 
+        $pdo->commit();
+
         // Уведомляем отправителя, что деньги получены
         notifyUser($parcel['sender_id'], "Наложенный платеж за посылку {$parcel['track_code']} оплачен. Ваш код для получения денег: $payout_code. Пожалуйста, сохраните его.");
 
         header("Location: parcel_receipt.php?id=$id&type=cod");
         exit;
 
-    } catch (Exception $e) { $error = $e->getMessage(); }
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        $error = $e->getMessage();
+    }
 }
 
 $page_title = "Оплата наложенного платежа " . $parcel['track_code'];
@@ -174,9 +190,9 @@ include __DIR__ . '/header.php';
                                 <?php else: ?>
                                     <div class="mt-3">
                                         <label class="form-label x-small fw-bold text-success"><?php echo $confirm_required ? 'Код подтверждения отправлен!' : 'Бонусы готовы к списанию'; ?></label>
-                                        <input type="hidden" name="points_spent" value="<?php echo $_POST['points_to_spend'] ?? $_POST['points_spent']; ?>">
+                                        <input type="hidden" name="points_spent" value="<?php echo e($_POST['points_to_spend'] ?? $_POST['points_spent'] ?? 0); ?>">
                                         <input type="text" name="confirm_code" class="form-control form-control-sm" placeholder="Введите код из личного кабинета" required value="<?php echo e($_POST['confirm_code'] ?? ''); ?>">
-                                        <div class="mt-2 small">К списанию: <b><?php echo number_format($_POST['points_to_spend'] ?? $_POST['points_spent'], 2); ?> Б.</b></div>
+                                        <div class="mt-2 small">К списанию: <b><?php echo number_format((float)($_POST['points_to_spend'] ?? $_POST['points_spent'] ?? 0), 2); ?> Б.</b></div>
                                     </div>
                                 <?php endif; ?>
                             </div>

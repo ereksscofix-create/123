@@ -94,16 +94,16 @@ include __DIR__ . '/header.php';
                             <td class="text-end py-1 fw-bold"><?php echo number_format($parcel['cod'], 2); ?></td>
                         </tr>
                         <?php endif; ?>
-                        <?php if($parcel['loyalty_spent'] > 0): ?>
+                        <?php if((float)$parcel['loyalty_spent'] > 0): ?>
                         <tr class="text-danger border-top">
                             <td class="py-1 fw-bold">Списание бонусов</td>
-                            <td class="text-end py-1 fw-bold">-<?php echo number_format($parcel['loyalty_spent'], 2); ?> Б.</td>
+                            <td class="text-end py-1 fw-bold">-<?php echo number_format((float)$parcel['loyalty_spent'], 2); ?> Б.</td>
                         </tr>
                         <?php endif; ?>
-                        <?php if($parcel['loyalty_earned'] > 0): ?>
+                        <?php if((float)$parcel['loyalty_earned'] > 0): ?>
                         <tr class="text-success">
                             <td class="py-1 fw-bold">Начислено бонусов</td>
-                            <td class="text-end py-1 fw-bold">+<?php echo number_format($parcel['loyalty_earned'], 2); ?> Б.</td>
+                            <td class="text-end py-1 fw-bold">+<?php echo number_format((float)$parcel['loyalty_earned'], 2); ?> Б.</td>
                         </tr>
                         <?php endif; ?>
                     </table>
@@ -118,7 +118,13 @@ include __DIR__ . '/header.php';
 
                 <div class="receipt-row border-top mt-2 pt-2 fw-bold" style="font-size: 18px;">
                     <span>ИТОГО К ОПЛАТЕ:</span>
-                    <span><?php echo number_format($parcel['cost'] + ($parcel['is_cod_paid'] ? $parcel['cod'] : 0) - $parcel['loyalty_spent'], 2); ?> BYN</span>
+                    <span><?php
+                        $total_due = (float)$parcel['cost'];
+                        if (($parcel['is_cod_paid'] || ($_GET['type']??'') === 'cod')) {
+                            $total_due = (float)$parcel['cod'];
+                        }
+                        echo number_format($total_due - (float)$parcel['loyalty_spent'], 2);
+                    ?> BYN</span>
                 </div>
 
                 <?php
