@@ -18,7 +18,13 @@ try {
 
     // Логика отказа
     $cod_return_req = 0;
+    $refund_code = '';
     $msg = "Получатель ОТКАЗАЛСЯ от посылки {$parcel['track_code']}. Оформлен возврат.";
+
+    // Если наложенный платеж был оплачен, но еще не выдан отправителю — генерируем код возврата для получателя
+    if ($parcel['is_cod_paid'] && !$parcel['is_cod_issued']) {
+        $refund_code = 'REF-' . rand(1000, 9999) . '-' . rand(1000, 9999);
+    }
 
     // Если наложенный платеж был оплачен, и отправителю уже выдали деньги (is_cod_issued),
     // то отправитель становится должен эти деньги обратно при получении возврата.
@@ -27,8 +33,8 @@ try {
         $msg .= " ВНИМАНИЕ: Так как наложенный платеж уже был вам выплачен, при получении возврата вам необходимо будет вернуть сумму (" . number_format($parcel['cod'], 2) . " BYN) в кассу.";
     }
 
-    $stmt = $pdo->prepare("UPDATE parcels SET is_return = 1, cod_return_required = :crr, shelf = NULL WHERE id = :id");
-    $stmt->execute(['crr' => $cod_return_req, 'id' => $id]);
+    $stmt = $pdo->prepare("UPDATE parcels SET is_return = 1, cod_return_required = :crr, refund_code = :rc, shelf = NULL WHERE id = :id");
+    $stmt->execute(['crr' => $cod_return_req, 'rc' => $refund_code, 'id' => $id]);
 
     $status_text = "Получатель отказался от получения [" . date('d.m.Y H:i') . "]";
     $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");

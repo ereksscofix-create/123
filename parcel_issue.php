@@ -32,11 +32,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $parcels_to_issue = [];
 
-        if ($is_batch && $batch_uid > 0) {
+        // Авто-переключение в режим BATCH если ввели код M-XXXX в поле track
+        if (strpos($track, 'M-') === 0 && empty($code)) {
+            $code = $track;
+            $is_batch = true;
+        }
+
+        if ($is_batch) {
             // Массовая выдача по Мастер-QR
+            if ($batch_uid <= 0) {
+                // Пытаемся найти UID по коду, если ввели вручную
+                $stmt_f = $pdo->prepare("SELECT user_id FROM user_batch_codes WHERE code = :code AND code_date = DATE(NOW()) LIMIT 1");
+                $stmt_f->execute(['code' => $code]);
+                $batch_uid = (int)$stmt_f->fetchColumn();
+            }
+
             $stmt = $pdo->prepare("SELECT code FROM user_batch_codes WHERE user_id = :uid AND code = :code AND code_date = DATE(NOW()) LIMIT 1");
             $stmt->execute(['uid' => $batch_uid, 'code' => $code]);
-            if ($stmt->fetch()) {
+            if ($batch_uid > 0 && $stmt->fetch()) {
                 // Ищем все посылки этого пользователя, готовые к выдаче
                 $stmt = $pdo->prepare("
                     SELECT p.*, (SELECT status_text FROM parcel_status WHERE parcel_id = p.id ORDER BY id DESC LIMIT 1) as last_status

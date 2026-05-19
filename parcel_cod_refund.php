@@ -13,6 +13,15 @@ if (isset($_GET['debug'])) {
 $user = currentUser();
 if (!$user || $user['role'] !== 'worker') die("Доступ запрещен.");
 
+// Проверка открытой смены
+$shift = getOpenShift($user['id']);
+if (!$shift) {
+    $page_title = "Ошибка — EHPST";
+    include __DIR__ . '/header.php';
+    echo "<div class='alert alert-danger mt-5 p-5 rounded-4 text-center shadow-lg'><h2 class='fw-bold'>🚨 ОШИБКА: СМЕНА НЕ ОТКРЫТА</h2><p class='fs-5 mt-3'>Для проведения финансовых операций необходимо сначала открыть рабочую смену.</p><a href='shift_manage.php' class='btn btn-light fw-bold mt-4 px-4 rounded-pill'>ПЕРЕЙТИ К УПРАВЛЕНИЮ СМЕНАМИ</a></div>";
+    include __DIR__ . '/footer.php';
+    exit;
+}
 
 $success = '';
 $error = '';
@@ -28,8 +37,8 @@ if (isset($_POST['search'])) {
     if ($q !== '') {
         $stmt = $pdo->prepare("SELECT p.*, r.name as recipient_name, r.login as recipient_login
                                FROM parcels p
-                               JOIN users r ON p.recipient_id = r.id
-                               WHERE (p.track_code = :q OR p.refund_code = :q OR r.name LIKE :lk OR r.login LIKE :lk)
+                               LEFT JOIN users r ON p.recipient_id = r.id
+                               WHERE (p.track_code = :q OR p.refund_code = :q OR r.name LIKE :lk OR r.login LIKE :lk OR p.recipient_name_ext LIKE :lk)
                                AND p.refund_code IS NOT NULL AND p.refund_code != ''
                                AND p.is_cod_paid = 1 AND p.cod_refund_issued = 0
                                ORDER BY p.id DESC LIMIT 1");
@@ -72,14 +81,6 @@ if (isset($_POST['issue']) && isset($_POST['parcel_id'])) {
 
 $page_title = "Возврат нал.плат. — EHPST";
 include __DIR__ . '/header.php';
-
-// Проверка открытой смены
-$shift = getOpenShift($user['id']);
-if (!$shift) {
-    echo "<div class='alert alert-danger mt-5 p-5 rounded-4 text-center shadow-lg'><h2 class='fw-bold'>🚨 ОШИБКА: СМЕНА НЕ ОТКРЫТА</h2><p class='fs-5 mt-3'>Для проведения финансовых операций необходимо сначала открыть рабочую смену.</p><a href='shift_manage.php' class='btn btn-light fw-bold mt-4 px-4 rounded-pill'>ПЕРЕЙТИ К УПРАВЛЕНИЮ СМЕНАМИ</a></div>";
-    include __DIR__ . '/footer.php';
-    exit;
-}
 ?>
 
 <div class="row justify-content-center py-4">
@@ -106,7 +107,7 @@ if (!$shift) {
                 <?php else: ?>
                     <div class="p-4 bg-light rounded-4 mb-4 border border-danger border-opacity-10 shadow-sm text-center">
                         <div class="text-muted small text-uppercase fw-bold mb-2">ПОЛУЧАТЕЛЬ ВОЗВРАТА:</div>
-                        <div class="h4 fw-bold mb-3"><?php echo e($parcel['recipient_name'] ?: $parcel['recipient_login']); ?></div>
+                        <div class="h4 fw-bold mb-3"><?php echo e($parcel['recipient_name'] ?: ($parcel['recipient_login'] ?: $parcel['recipient_name_ext'])); ?></div>
                         <hr>
                         <div class="text-muted small text-uppercase fw-bold mb-1">СУММА К ВОЗВРАТУ:</div>
                         <div class="display-5 fw-extrabold text-danger"><?php echo number_format($parcel['cod'], 2); ?> BYN</div>

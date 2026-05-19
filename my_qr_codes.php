@@ -54,7 +54,7 @@ try {
 
     // Генерация BATCH-кода (Мастер-QR)
     $batch_code = null;
-    if (count($ready_parcels) > 1) {
+    if (count($ready_parcels) > 0) {
         $stmt_b = $pdo->prepare("SELECT code FROM user_batch_codes WHERE user_id = :uid AND code_date = DATE(NOW()) LIMIT 1");
         $stmt_b->execute(['uid' => $user_id]);
         $batch_code = $stmt_b->fetchColumn();
@@ -111,6 +111,13 @@ include __DIR__ . '/header.php';
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+        <div class="alert alert-info border-0 rounded-4 p-3 mb-5 d-flex align-items-center">
+            <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+            <div>
+                <div class="fw-bold">Как это работает?</div>
+                <div class="small opacity-75">Покажите Мастер QR-код сотруднику ПВЗ. Он увидит список всех ваших посылок и сможет выдать их одним нажатием. Это экономит время!</div>
             </div>
         </div>
         <hr class="mb-5">

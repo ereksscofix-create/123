@@ -147,6 +147,22 @@ include __DIR__ . '/header.php';
     .card-mobile { border-radius: 1rem; border: 1px solid rgba(0,0,0,0.05); margin-bottom: 1rem; }
 </style>
 
+<!-- Prominent Master QR Alert -->
+<?php if ($has_awaiting && count($ready_to_pickup) > 1): ?>
+<div class="alert alert-primary rounded-4 shadow-sm border-0 mb-4 animate-fade-in d-flex align-items-center justify-content-between p-4" style="background: linear-gradient(135deg, #4361ee, #4895ef); color: white;">
+    <div class="d-flex align-items-center">
+        <div class="bg-white bg-opacity-20 p-3 rounded-circle me-3">
+            <i class="bi bi-qr-code-scan fs-3"></i>
+        </div>
+        <div>
+            <h5 class="fw-bold mb-1">Готовы к выдаче: <?php echo count($ready_to_pickup); ?> посылки</h5>
+            <p class="mb-0 opacity-75 small">Используйте один Мастер QR-код для получения всех отправлений сразу.</p>
+        </div>
+    </div>
+    <a href="my_qr_codes.php" class="btn btn-white text-primary rounded-pill fw-bold px-4">ПОКАЗАТЬ QR</a>
+</div>
+<?php endif; ?>
+
 <!-- Floating QR -->
 <?php if (isset($db_error)): ?>
     <div class="alert alert-danger rounded-4 shadow-sm p-4 mb-4">
@@ -197,7 +213,7 @@ include __DIR__ . '/header.php';
         <?php endif; ?>
 
         <!-- PARCEL LIST -->
-        <div class="card dashboard-card bg-white overflow-hidden shadow-sm">
+        <div class="card dashboard-card bg-white shadow-sm">
             <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-bold">Список отправлений</h5>
                 <form method="get" class="d-flex gap-2">
@@ -359,10 +375,17 @@ function renderActionMenu($p, $user_id, $role, $is_mobile = false) {
     $is_p_sender_ret = ((int)$p['sender_id'] === $user_id && (int)($p['is_return']??0) === 1);
     ?>
     <div class="dropdown <?php echo $is_mobile ? 'd-grid' : ''; ?>">
-        <button class="btn btn-light <?php echo $is_mobile ? 'btn-md' : 'btn-sm'; ?> rounded-pill px-3 shadow-none border fw-bold" data-bs-toggle="dropdown">
+        <button class="btn btn-light <?php echo $is_mobile ? 'btn-md' : 'btn-sm'; ?> rounded-pill px-3 shadow-none border fw-bold" data-bs-toggle="dropdown" data-bs-boundary="viewport">
             <i class="bi bi-three-dots<?php echo $is_mobile ? '-vertical' : ''; ?> me-1"></i> Опции
         </button>
-        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-3" style="min-width: 280px; max-height: 80vh; overflow-y: auto;">
+        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-3" style="min-width: 280px; max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch;">
+
+            <?php if (($is_p_recip || $is_p_sender_ret) && (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false)): ?>
+                <li><a class="dropdown-item py-2 fw-bold text-success" href="my_qr_codes.php"><i class="bi bi-qr-code-scan me-2"></i>МАСТЕР QR (ВСЕ ПОСЫЛКИ)</a></li>
+                <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_pickup_qr.php?id=<?php echo $p['id']; ?>"><i class="bi bi-qr-code me-2"></i>QR-КОД ЭТОЙ ПОСЫЛКИ</a></li>
+                <li><hr class="dropdown-divider"></li>
+            <?php endif; ?>
+
             <li><a class="dropdown-item py-2" href="parcel_history.php?id=<?php echo $p['id']; ?>"><i class="bi bi-clock-history me-2 text-primary"></i>История</a></li>
             <li><a class="dropdown-item py-2" href="label_print.php?id=<?php echo $p['id']; ?>"><i class="bi bi-printer me-2 text-primary"></i>Печать ярлыка</a></li>
 
@@ -401,9 +424,8 @@ function renderActionMenu($p, $user_id, $role, $is_mobile = false) {
             <?php endif; ?>
 
             <?php if (($is_p_recip || $is_p_sender_ret) && (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false)): ?>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_pickup_qr.php?id=<?php echo $p['id']; ?>"><i class="bi bi-qr-code me-2"></i>QR-КОД ВЫДАЧИ</a></li>
                 <?php if ($is_p_recip): ?>
+                    <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confRefuse(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-x-circle me-2"></i>ОТКАЗ ОТ ПОСЫЛКИ</a></li>
                 <?php endif; ?>
             <?php endif; ?>
