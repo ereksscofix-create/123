@@ -137,7 +137,8 @@ if (isset($_GET['action'])) {
             try {
                 $stmt = $pdo->prepare("INSERT INTO parcel_codes (parcel_id, code, secret_code, code_date) VALUES (:pid, :c, :s, DATE(NOW()))");
                 $stmt->execute(['pid' => $pid, 'c' => $code, 's' => $secret]);
-            } catch (Exception $e) {
+            } catch (PDOException $e) {
+                error_log("API generate code error: " . $e->getMessage());
                 // В случае гонки условий, просто попробуем еще раз получить код
                 $stmt = $pdo->prepare("SELECT code FROM parcel_codes WHERE parcel_id = :pid AND code_date = DATE(NOW()) LIMIT 1");
                 $stmt->execute(['pid' => $pid]);

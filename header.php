@@ -135,6 +135,7 @@
     </style>
 </head>
 <body>
+    <?php $u = currentUser(); ?>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
             <a class="navbar-brand" href="dashboard.php">
@@ -159,10 +160,7 @@
                     <li class="nav-item">
                         <a class="nav-link" href="stamp_verify.php">Проверка марки</a>
                     </li>
-                    <?php
-                    $u = currentUser();
-                    if($u):
-                    ?>
+                    <?php if($u): ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle bg-light rounded-pill px-4 py-2 d-flex align-items-center border" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-person-circle fs-5 me-2"></i>
