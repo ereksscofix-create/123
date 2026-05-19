@@ -28,16 +28,22 @@ try {
         // Логика возврата
         $refund_code = '';
 
+        $cod_return_req = 0;
         // Если наложенный платеж был оплачен, но посылку возвращают, генерируем код возврата денег
         if ($parcel['is_cod_paid'] && !$parcel['is_cod_issued'] && !$parcel['cod_refund_issued']) {
             $refund_code = 'REF-' . rand(1000, 9999) . '-' . rand(1000, 9999);
         }
 
+        // Если деньги УЖЕ выплачены отправителю, он должен их вернуть при получении возврата
+        if ($parcel['is_cod_paid'] && $parcel['is_cod_issued']) {
+            $cod_return_req = 1;
+        }
+
         // Если посылка отправлялась с ПВЗ, при возврате она должна вернуться на тот же ПВЗ
         $target_pvz = $parcel['sender_pvz'];
 
-        $stmt = $pdo->prepare("UPDATE parcels SET is_return = 1, refund_code = :rc, pickup_point = :pvz, shelf = NULL, return_fee = :rf WHERE id = :id");
-        $stmt->execute(['rc' => $refund_code, 'pvz' => $target_pvz, 'rf' => $return_fee, 'id' => $id]);
+        $stmt = $pdo->prepare("UPDATE parcels SET is_return = 1, refund_code = :rc, cod_return_required = :crr, pickup_point = :pvz, shelf = NULL, return_fee = :rf WHERE id = :id");
+        $stmt->execute(['rc' => $refund_code, 'crr' => $cod_return_req, 'pvz' => $target_pvz, 'rf' => $return_fee, 'id' => $id]);
 
         $status_text = "Оформлен возврат [" . date('d.m.Y H:i') . "] (Оператор: " . ($user['name'] ?: $user['login']) . ")";
         if ($return_fee > 0) {
@@ -87,8 +93,11 @@ include __DIR__ . '/header.php';
 
                     <div class="alert alert-info small border-0 shadow-sm mb-4">
                         <i class="bi bi-info-circle-fill me-2"></i>
-                        <?php if ($parcel['is_cod_paid']): ?>
+                        <?php if ($parcel['is_cod_paid'] && !$parcel['is_cod_issued']): ?>
                             Будет сгенерирован код для возврата наложенного платежа (<?php echo number_format($parcel['cod'], 2); ?> BYN) получателю.
+                        <?php elseif ($parcel['is_cod_paid'] && $parcel['is_cod_issued']): ?>
+                            <span class="text-danger fw-bold">ВНИМАНИЕ: Наложенный платеж уже выплачен отправителю!</span><br>
+                            Отправитель будет обязан вернуть сумму (<?php echo number_format($parcel['cod'], 2); ?> BYN) при получении возвратной посылки.
                         <?php else: ?>
                             Наложенный платеж не был оплачен, возврат средств не требуется.
                         <?php endif; ?>

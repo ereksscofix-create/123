@@ -31,14 +31,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $location = trim($_POST['location'] ?? '');
 
     $final_status = ($status === 'custom') ? $custom_status : $status;
+    $delivery_partner = trim($_POST['delivery_partner'] ?? '');
 
     if ($final_status !== '') {
         try {
+            // Обновляем партнёра в таблице посылок
+            if ($delivery_partner !== '') {
+                $stmt = $pdo->prepare("UPDATE parcels SET delivery_partner = :dp WHERE id = :id");
+                $stmt->execute(['dp' => $delivery_partner, 'id' => $id]);
+            }
+
             // Добавляем информацию о том, кто изменил статус, прямо в текст статуса (для истории)
             $worker_name = $user['name'] ?: $user['login'];
             $full_status_text = $final_status;
             if ($location !== '') {
                 $full_status_text .= " [" . $location . "]";
+            }
+            if ($delivery_partner !== '') {
+                $full_status_text .= " (Партнёр: $delivery_partner)";
             }
             $full_status_text .= " (Оператор: " . $worker_name . ")";
 
@@ -111,9 +121,21 @@ include __DIR__ . '/header.php';
                         </div>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="form-label fw-bold text-muted small text-uppercase">Местоположение / Город</label>
                         <input type="text" name="location" class="form-control form-control-lg border-2 shadow-none" placeholder="Например: Минск СЦ-1">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-primary small text-uppercase">Назначить партнёра (опционально)</label>
+                        <select name="delivery_partner" class="form-select form-select-lg border-2 shadow-none border-primary">
+                            <option value="">-- Без изменений / EHPST --</option>
+                            <option value="Белпочта" <?php echo ($parcel['delivery_partner']??'')==='Белпочта'?'selected':'';?>>Белпочта</option>
+                            <option value="Почта России" <?php echo ($parcel['delivery_partner']??'')==='Почта России'?'selected':'';?>>Почта России</option>
+                            <option value="OZON" <?php echo ($parcel['delivery_partner']??'')==='OZON'?'selected':'';?>>OZON</option>
+                            <option value="СДЭК" <?php echo ($parcel['delivery_partner']??'')==='СДЭК'?'selected':'';?>>СДЭК</option>
+                            <option value="Wildberries" <?php echo ($parcel['delivery_partner']??'')==='Wildberries'?'selected':'';?>>Wildberries</option>
+                        </select>
                     </div>
 
                     <div class="mt-4 pt-3 border-top">

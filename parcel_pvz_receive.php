@@ -49,9 +49,19 @@ if (isset($_POST['receive'])) {
             $stmt->execute(['shelf' => $shelf, 'id' => $id]);
 
             // Номер полки не пишем в публичный статус
-            $status_text = "Принято в ПВЗ [" . $parcel['pickup_point'] . "] [" . date('d.m.Y H:i') . "] (Оператор: " . ($user['name'] ?: $user['login']) . ")";
+            $status_text = "Прибыло в ПВЗ [" . $parcel['pickup_point'] . "] и ожидает получения [" . date('d.m.Y H:i') . "] (Оператор: " . ($user['name'] ?: $user['login']) . ")";
             $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
             $stmt->execute(['pid' => $id, 'txt' => $status_text]);
+
+            // Генерация кода получения сразу при приемке (проактивно)
+            $stmt_c = $pdo->prepare("SELECT id FROM parcel_codes WHERE parcel_id = :pid AND code_date = DATE(NOW()) LIMIT 1");
+            $stmt_c->execute(['pid' => $id]);
+            if (!$stmt_c->fetch()) {
+                $code = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+                $secret = substr(md5(time() . $id), 0, 6);
+                $stmt_i = $pdo->prepare("INSERT INTO parcel_codes (parcel_id, code, secret_code, code_date) VALUES (:pid, :c, :s, DATE(NOW()))");
+                $stmt_i->execute(['pid' => $id, 'c' => $code, 's' => $secret]);
+            }
 
             $success = true;
         } else {

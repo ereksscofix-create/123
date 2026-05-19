@@ -27,7 +27,7 @@ try {
         die("У вас нет доступа к этому чеку.");
     }
 
-    if (!$parcel['is_paid']) {
+    if (!$parcel['is_paid'] && !$parcel['is_cod_paid']) {
         die("Эта посылка еще не оплачена.");
     }
 
@@ -48,7 +48,7 @@ include __DIR__ . '/header.php';
 
                 <div class="receipt-row"><span>НОМЕР ТРЕКА:</span> <strong><?php echo e($parcel['track_code']); ?></strong></div>
                 <div class="receipt-row"><span>ОПЕРАЦИЯ №:</span> <strong><?php echo e($parcel['receipt_no'] ?: '---'); ?></strong></div>
-                <div class="receipt-row border-bottom mb-2 pb-2"><span>ТИП:</span> <strong>ОПЛАТА (<?php echo e($parcel['payment_method'] ?: 'Карта'); ?>)</strong></div>
+                <div class="receipt-row border-bottom mb-2 pb-2"><span>ТИП:</span> <strong><?php echo ($_GET['type']??'') === 'cod' ? 'НАЛОЖЕННЫЙ ПЛАТЕЖ' : 'ОПЛАТА УСЛУГ'; ?> (<?php echo e($parcel['payment_method'] ?: 'Карта'); ?>)</strong></div>
 
                 <div class="receipt-row"><span>ОТПРАВИТЕЛЬ:</span> <strong><?php echo e($parcel['s_name'] ?: $parcel['s_login']); ?></strong></div>
                 <div class="receipt-row border-bottom mb-3 pb-2"><span>ПОЛУЧАТЕЛЬ:</span> <strong><?php echo e($parcel['r_name'] ?: $parcel['r_login']); ?></strong></div>

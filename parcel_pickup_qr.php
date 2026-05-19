@@ -24,8 +24,11 @@ try {
 
     if (!$parcel) die("Посылка не найдена.");
 
-    // Access control: Worker or Recipient
-    if ($user['role'] !== 'worker' && (int)$parcel['recipient_id'] !== (int)$user['id']) {
+    // Access control: Worker or Recipient (or Sender if it is a return)
+    $is_p_recip = ((int)$parcel['recipient_id'] === (int)$user['id'] && (int)($parcel['is_return']??0) === 0);
+    $is_p_sender_ret = ((int)$parcel['sender_id'] === (int)$user['id'] && (int)($parcel['is_return']??0) === 1);
+
+    if ($user['role'] !== 'worker' && !$is_p_recip && !$is_p_sender_ret) {
         die("У вас нет доступа к этой посылке.");
     }
 

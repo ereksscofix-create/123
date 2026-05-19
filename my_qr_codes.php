@@ -28,21 +28,26 @@ try {
 
     foreach ($all as $p) {
         $st = $p['last_status'] ?? '';
+        // Генерируем QR для всех, кто в статусе ожидания или прибыл
         if (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false) {
 
             // Получаем или генерируем код на СЕГОДНЯ
-            $stmt_c = $pdo->prepare("SELECT code FROM parcel_codes WHERE parcel_id = :pid AND code_date = DATE(NOW()) LIMIT 1");
+            $stmt_c = $pdo->prepare("SELECT code, secret_code FROM parcel_codes WHERE parcel_id = :pid AND code_date = DATE(NOW()) LIMIT 1");
             $stmt_c->execute(['pid' => $p['id']]);
-            $code = $stmt_c->fetchColumn();
+            $c_data = $stmt_c->fetch();
 
-            if (!$code) {
+            if (!$c_data) {
                 $code = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
                 $secret = substr(md5(time() . $p['id']), 0, 6);
                 $stmt_i = $pdo->prepare("INSERT INTO parcel_codes (parcel_id, code, secret_code, code_date) VALUES (:pid, :c, :s, DATE(NOW()))");
                 $stmt_i->execute(['pid' => $p['id'], 'c' => $code, 's' => $secret]);
+                $p['today_code'] = $code;
+                $p['secret_code'] = $secret;
+            } else {
+                $p['today_code'] = $c_data['code'];
+                $p['secret_code'] = $c_data['secret_code'];
             }
 
-            $p['today_code'] = $code;
             $ready_parcels[] = $p;
         }
     }

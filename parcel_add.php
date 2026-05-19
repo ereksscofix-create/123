@@ -86,17 +86,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $debt = (float)$stmt_debt->fetchColumn();
 
                 if ($debt > 0) {
-                    $error = "🚨 ОФОРМЛЕНИЕ ЗАБЛОКИРОВАНО: У отправителя имеется задолженность по возврату наложенных платежей (сумма: " . number_format($debt, 2) . " BYN). Сначала необходимо погасить долг в кассе.";
+                    $error = "🚨 ОФОРМЛЕНИЕ ЗАБЛОКИРОВАНО: У отправителя имеется задолженность по возврату наложенных платежей (сумма: " . number_format($debt, 2) . " BYN). Сначала необходимо погасить долг в кассе (раздел 'Принять долг по нал.пл.' в управлении посылкой).";
                 } else {
 
                 // Попытка вставить со всеми новыми полями
                 try {
+                    $rid_final = ($recipient_id > 0) ? $recipient_id : null;
                     $stmt = $pdo->prepare("INSERT INTO parcels
                         (track_code, sender_id, recipient_id, recipient_name_ext, sender_address, sender_pvz, address, pickup_point, weight, cost, base_cost, cod_fee, dv_fee, inv_fee, tariff, delivery_partner, cod, declared_value, inventory, pay_on_delivery)
                         VALUES (:track, :sid, :rid, :rname, :saddr, :spvz, :addr, :pvz, :w, :c, :bc, :cf, :df, :if, :t, :dp, :cod, :dv, :inv, :pod)");
 
                     $stmt->execute([
-                        'track' => $track, 'sid' => $sender_id, 'rid' => ($recipient_id > 0 ? $recipient_id : null),
+                        'track' => $track, 'sid' => $sender_id, 'rid' => $rid_final,
                         'rname' => $recipient_name,
                         'saddr' => $sender_address, 'spvz' => $sender_pvz, 'addr' => $address, 'pvz' => $pickup_point, 'w' => $weight,
                         'c' => $cost, 'bc' => $base_cost, 'cf' => $cod_fee, 'df' => $dv_fee, 'if' => $inv_fee,

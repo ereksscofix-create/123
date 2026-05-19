@@ -156,7 +156,7 @@ if (isset($_POST['pay'])) {
             $stmt->execute(['pid' => $id, 'txt' => $status_text]);
 
             $pdo->commit();
-            header("Location: dashboard.php?pay_success=1&id=$id");
+            header("Location: parcel_receipt.php?id=$id");
             exit;
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();

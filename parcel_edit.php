@@ -110,6 +110,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else { throw $e; }
         }
         $success = "Данные обновлены! Стоимость: " . number_format($cost, 2) . " BYN" . ($success_warning ?? '');
+
+        // Если изменения повлекли необходимость оплаты, перенаправляем (только для пользователей)
+        if ($user['role'] !== 'worker') {
+            header("Location: parcel_pay.php?id=$id&edit=1");
+            exit;
+        }
+
         $parcel['address'] = $address;
         $parcel['weight'] = $weight;
         $parcel['cost'] = $cost;

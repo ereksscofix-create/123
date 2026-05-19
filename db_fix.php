@@ -1,9 +1,9 @@
 <?php
-// db_fix.php — Автоматическое исправление структуры БД (Версия 14.0)
+// db_fix.php — Автоматическое исправление структуры БД (Версия 15.0)
 require_once __DIR__ . '/config.php';
 
 echo "<style>body{font-family:sans-serif;line-height:1.6;padding:20px;background:#f4f7f6;} .log{background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.1);} .ok{color:green;font-weight:bold;} .err{color:red;font-weight:bold;} .warn{color:orange;font-weight:bold;}</style>";
-echo "<h2>Исправление структуры БД EHPST (Версия 14.0)</h2>";
+echo "<h2>Исправление структуры БД EHPST (Версия 15.0)</h2>";
 echo "<div class='log'>";
 
 try {
