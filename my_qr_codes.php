@@ -20,8 +20,8 @@ try {
         FROM parcels p
         LEFT JOIN users s ON p.sender_id = s.id
         LEFT JOIN users r ON p.recipient_id = r.id
-        WHERE ((p.recipient_id = :uid AND p.is_return = 0) OR (p.sender_id = :uid AND p.is_return = 1))
-        AND p.is_deleted_by_recipient = 0
+        WHERE ((p.recipient_id = :uid AND p.is_return = 0 AND p.is_deleted_by_recipient = 0)
+           OR (p.sender_id = :uid AND p.is_return = 1 AND p.is_deleted_by_sender = 0))
     ");
     $stmt->execute(['uid' => $user_id]);
     $all = $stmt->fetchAll();

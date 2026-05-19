@@ -1,9 +1,9 @@
 <?php
-// db_fix.php — Автоматическое исправление структуры БД (Версия 10.0)
+// db_fix.php — Автоматическое исправление структуры БД (Версия 11.0)
 require_once __DIR__ . '/config.php';
 
 echo "<style>body{font-family:sans-serif;line-height:1.6;padding:20px;background:#f4f7f6;} .log{background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.1);} .ok{color:green;font-weight:bold;} .err{color:red;font-weight:bold;} .warn{color:orange;font-weight:bold;}</style>";
-echo "<h2>Исправление структуры БД EHPST (Версия 10.0)</h2>";
+echo "<h2>Исправление структуры БД EHPST (Версия 11.0)</h2>";
 echo "<div class='log'>";
 
 try {
@@ -13,6 +13,13 @@ try {
 
     // 2. Исправление parcel_codes
     echo "<li><b>Обработка таблицы parcel_codes:</b><ul>";
+
+    $s = $pdo->query("DESCRIBE parcel_codes");
+    $pc_cols = $s->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('code_date', $pc_cols)) {
+        $pdo->exec("ALTER TABLE parcel_codes ADD COLUMN code_date DATE DEFAULT NULL AFTER secret_code");
+        echo "<li class='ok'>Добавлена колонка code_date в parcel_codes</li>";
+    }
 
     // Пытаемся удалить внешний ключ, если он мешает
     try {

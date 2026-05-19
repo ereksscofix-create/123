@@ -60,10 +60,11 @@ function hasReadyParcels($user_id) {
     if (!$user_id) return false;
     try {
         $stmt = $pdo->prepare("
-            SELECT p.id, (SELECT status_text FROM parcel_status WHERE parcel_id = p.id ORDER BY id DESC LIMIT 1) as last_status
+            SELECT p.id, p.track_code,
+                (SELECT status_text FROM parcel_status WHERE parcel_id = p.id ORDER BY id DESC LIMIT 1) as last_status
             FROM parcels p
-            WHERE ((p.recipient_id = :uid AND p.is_return = 0) OR (p.sender_id = :uid AND p.is_return = 1))
-            AND p.is_deleted_by_recipient = 0
+            WHERE ((p.recipient_id = :uid AND p.is_return = 0 AND p.is_deleted_by_recipient = 0)
+               OR (p.sender_id = :uid AND p.is_return = 1 AND p.is_deleted_by_sender = 0))
         ");
         $stmt->execute(['uid' => (int)$user_id]);
         $parcels = $stmt->fetchAll();
@@ -74,6 +75,7 @@ function hasReadyParcels($user_id) {
             }
         }
     } catch (Exception $e) {
+        error_log("hasReadyParcels error: " . $e->getMessage());
         return false;
     }
     return false;

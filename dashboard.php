@@ -175,8 +175,8 @@ try {
     if ($role !== 'worker') {
         foreach ($parcels as $p) {
             $st = $p['last_status'] ?? '';
-            $is_recipient = ((int)$p['recipient_id'] === $user_id && (int)$p['is_return'] === 0);
-            $is_sender_return = ((int)$p['sender_id'] === $user_id && (int)$p['is_return'] === 1);
+            $is_recipient = ((int)$p['recipient_id'] === $user_id && (int)$p['is_return'] === 0 && (int)($p['is_deleted_by_recipient']??0) === 0);
+            $is_sender_return = ((int)$p['sender_id'] === $user_id && (int)$p['is_return'] === 1 && (int)($p['is_deleted_by_sender']??0) === 0);
 
             if (($is_recipient || $is_sender_return) && (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false)) {
                 $ready_to_pickup[] = $p;
