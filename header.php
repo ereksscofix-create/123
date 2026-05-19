@@ -148,6 +148,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="dashboard.php">Панель</a>
                     </li>
+                    <?php if($u && hasReadyParcels($u['id'])): ?>
+                    <li class="nav-item">
+                        <a class="nav-link text-success fw-bold" href="my_qr_codes.php"><i class="bi bi-qr-code me-1"></i>QR-коды</a>
+                    </li>
+                    <?php endif; ?>
                     <li class="nav-item">
                         <a class="nav-link" href="track.php">Отследить</a>
                     </li>

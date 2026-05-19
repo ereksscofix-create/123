@@ -175,7 +175,10 @@ try {
     if ($role !== 'worker') {
         foreach ($parcels as $p) {
             $st = $p['last_status'] ?? '';
-            if ((int)$p['recipient_id'] === $user_id && (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false)) {
+            $is_recipient = ((int)$p['recipient_id'] === $user_id && (int)$p['is_return'] === 0);
+            $is_sender_return = ((int)$p['sender_id'] === $user_id && (int)$p['is_return'] === 1);
+
+            if (($is_recipient || $is_sender_return) && (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false)) {
                 $ready_to_pickup[] = $p;
                 $has_awaiting = true;
             }
@@ -211,6 +214,26 @@ include __DIR__ . '/header.php';
 .card-parcel:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important; }
 .mobile-fab { position: fixed; bottom: 20px; right: 20px; z-index: 1000; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(111, 66, 193, 0.4); }
 @media (min-width: 992px) { .mobile-fab { display: none; } }
+
+.qr-corner-fab {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    z-index: 999;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--success);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3);
+    transition: 0.3s;
+    text-decoration: none;
+}
+.qr-corner-fab:hover { transform: scale(1.1); color: #fff; }
+
 @media (max-width: 768px) {
     .h3-mobile { font-size: 1.15rem; }
     .card-body { padding: 0.85rem !important; }
@@ -224,6 +247,13 @@ include __DIR__ . '/header.php';
 <a href="parcel_add.php" class="mobile-fab btn-create d-lg-none">
     <i class="bi bi-plus-lg fs-3"></i>
 </a>
+
+<!-- Floating QR Icon -->
+<?php if ($has_awaiting): ?>
+<a href="my_qr_codes.php" class="qr-corner-fab animate-pulse" title="Мои QR-коды">
+    <i class="bi bi-qr-code fs-4"></i>
+</a>
+<?php endif; ?>
 
 <!-- ПОСЫЛКИ К ВЫДАЧЕ -->
 <?php if ($has_awaiting): ?>

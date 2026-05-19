@@ -52,6 +52,33 @@ function currentUser() {
     return $cache;
 }
 
+/**
+ * Проверяет, есть ли у пользователя посылки, готовые к выдаче
+ */
+function hasReadyParcels($user_id) {
+    global $pdo;
+    if (!$user_id) return false;
+    try {
+        $stmt = $pdo->prepare("
+            SELECT p.id, (SELECT status_text FROM parcel_status WHERE parcel_id = p.id ORDER BY id DESC LIMIT 1) as last_status
+            FROM parcels p
+            WHERE ((p.recipient_id = :uid AND p.is_return = 0) OR (p.sender_id = :uid AND p.is_return = 1))
+            AND p.is_deleted_by_recipient = 0
+        ");
+        $stmt->execute(['uid' => (int)$user_id]);
+        $parcels = $stmt->fetchAll();
+        foreach ($parcels as $p) {
+            $st = $p['last_status'] ?? '';
+            if (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false) {
+                return true;
+            }
+        }
+    } catch (Exception $e) {
+        return false;
+    }
+    return false;
+}
+
 // Уведомление пользователя
 function notifyUser(int $user_id, string $message, string $type = 'info', bool $sendEmail = false): bool {
     global $pdo;
