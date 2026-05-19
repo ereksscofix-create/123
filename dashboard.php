@@ -68,8 +68,8 @@ try {
     $params = [];
     $where = [];
     if ($role !== 'worker') {
-        $where[] = "((p.sender_id = :u_sid AND p.is_deleted_by_sender = 0)
-                     OR (p.recipient_id = :u_rid AND p.is_deleted_by_recipient = 0))";
+        $where[] = "((p.sender_id = :u_sid AND (p.is_deleted_by_sender = 0 OR p.is_deleted_by_sender IS NULL))
+                     OR (p.recipient_id = :u_rid AND (p.is_deleted_by_recipient = 0 OR p.is_deleted_by_recipient IS NULL)))";
         $params['u_sid'] = $user_id;
         $params['u_rid'] = $user_id;
     }
@@ -98,7 +98,12 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $parcels = $stmt->fetchAll();
+} catch (PDOException $e) {
+    $db_error = $e->getMessage();
+    $parcels = [];
+}
 
+try {
     // Посылки к выдаче (для кнопок QR)
     $ready_to_pickup = [];
     foreach ($parcels as $p) {
@@ -133,6 +138,15 @@ include __DIR__ . '/header.php';
 </style>
 
 <!-- Floating QR -->
+<?php if (isset($db_error)): ?>
+    <div class="alert alert-danger rounded-4 shadow-sm p-4 mb-4">
+        <h4 class="fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Ошибка базы данных</h4>
+        <p class="mb-0"><?php echo e($db_error); ?></p>
+        <hr>
+        <p class="small mb-0">Попробуйте запустить <a href="db_fix.php" class="fw-bold">скрипт исправления БД</a></p>
+    </div>
+<?php endif; ?>
+
 <?php if ($has_awaiting): ?>
 <a href="my_qr_codes.php" class="qr-fab btn btn-success animate-pulse"><i class="bi bi-qr-code fs-3"></i></a>
 <?php endif; ?>

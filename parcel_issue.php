@@ -22,47 +22,82 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $track = trim($_POST['track'] ?? '');
     $code = trim($_POST['code'] ?? '');
+    $is_batch = (strpos($code, 'M-') === 0);
+    $batch_uid = (int)($_POST['batch_uid'] ?? 0);
+
     $secret = trim($_POST['secret'] ?? '');
     $passport = trim($_POST['passport'] ?? '');
     $loyalty_card_num = trim($_POST['loyalty_card'] ?? '');
 
     try {
-        $stmt = $pdo->prepare("SELECT id, sender_id, recipient_id, is_paid, pay_on_delivery, cod, is_cod_paid, shelf, pickup_point, is_return, cod_return_required FROM parcels WHERE track_code = :track LIMIT 1");
-        $stmt->execute(['track' => $track]);
-        $parcel = $stmt->fetch();
+        $parcels_to_issue = [];
 
-        if (!$parcel) {
-            $error = "Посылка с таким трек-кодом не найдена.";
+        if ($is_batch && $batch_uid > 0) {
+            // Массовая выдача по Мастер-QR
+            $stmt = $pdo->prepare("SELECT code FROM user_batch_codes WHERE user_id = :uid AND code = :code AND code_date = DATE(NOW()) LIMIT 1");
+            $stmt->execute(['uid' => $batch_uid, 'code' => $code]);
+            if ($stmt->fetch()) {
+                // Ищем все посылки этого пользователя, готовые к выдаче
+                $stmt = $pdo->prepare("
+                    SELECT p.*, (SELECT status_text FROM parcel_status WHERE parcel_id = p.id ORDER BY id DESC LIMIT 1) as last_status
+                    FROM parcels p
+                    WHERE ((p.recipient_id = :uid AND p.is_return = 0) OR (p.sender_id = :uid AND p.is_return = 1))
+                ");
+                $stmt->execute(['uid' => $batch_uid]);
+                $all_u = $stmt->fetchAll();
+                foreach($all_u as $pu) {
+                    $st = $pu['last_status'] ?? '';
+                    if (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false) {
+                        $parcels_to_issue[] = $pu;
+                    }
+                }
+                if (empty($parcels_to_issue)) $error = "Нет посылок, готовых к выдаче для этого пользователя.";
+            } else {
+                $error = "Неверный или истекший BATCH-код.";
+            }
         } else {
+            // Одиночная выдача
+            $stmt = $pdo->prepare("SELECT id, track_code, sender_id, recipient_id, is_paid, pay_on_delivery, cod, is_cod_paid, shelf, pickup_point, is_return, cod_return_required, tariff, weight FROM parcels WHERE track_code = :track LIMIT 1");
+            $stmt->execute(['track' => $track]);
+            $p = $stmt->fetch();
+            if ($p) $parcels_to_issue[] = $p;
+            else $error = "Посылка с таким трек-кодом не найдена.";
+        }
+
+        foreach ($parcels_to_issue as $parcel) {
+            $is_already_issued = false;
             // Проверка: Не выдана ли уже? (Если это ВОЗВРАТ, то игнорируем прошлые выдачи)
             if ((int)($parcel['is_return'] ?? 0) === 0) {
                 $stmt_check = $pdo->prepare("SELECT id FROM parcel_status WHERE parcel_id = :pid AND (status_text LIKE '%выдана%' OR status_text LIKE '%доставлено%') LIMIT 1");
                 $stmt_check->execute(['pid' => $parcel['id']]);
                 if ($stmt_check->fetch()) {
-                    $error = "Эта посылка уже была выдана ранее получателю.";
-                    $parcel = null;
+                    $error .= "Посылка {$parcel['track_code']} уже была выдана ранее.<br>";
+                    $is_already_issued = true;
                 }
             } else {
                 // Если это возврат, проверяем, не был ли УЖЕ выдан сам возврат
                 $stmt_check = $pdo->prepare("SELECT id FROM parcel_status WHERE parcel_id = :pid AND status_text LIKE 'Возврат выдан%' LIMIT 1");
                 $stmt_check->execute(['pid' => $parcel['id']]);
                 if ($stmt_check->fetch()) {
-                    $error = "Этот возврат уже был выдан отправителю ранее.";
-                    $parcel = null;
+                    $error .= "Возврат {$parcel['track_code']} уже был выдан ранее.<br>";
+                    $is_already_issued = true;
                 }
             }
-        }
 
-        if ($parcel) {
-            if ($parcel['pickup_point'] && $parcel['shelf']) {
-                $success = "<div class='p-3 bg-primary text-white rounded-3 mb-3'>📦 МЕСТО ХРАНЕНИЯ (ПОЛКА): <span class='display-6 fw-bold ms-2'>{$parcel['shelf']}</span></div>";
+            if ($is_already_issued) continue;
+
+            $success_info = "";
+            if (!empty($parcel['pickup_point']) && !empty($parcel['shelf'])) {
+                $success_info = "<div class='p-2 bg-primary text-white rounded-3 mb-2 small'>📦 ПОЛКА: <span class='fw-bold ms-1'>{$parcel['shelf']}</span> [{$parcel['track_code']}]</div>";
             }
             $parcel_id = (int)$parcel['id'];
-            $recipient_id = (int)$parcel['recipient_id'];
             $can_issue = false;
             $method = '';
 
-            if ($code !== '') {
+            if ($is_batch) {
+                $can_issue = true;
+                $method = "по BATCH-коду ($code)";
+            } elseif ($code !== '') {
                 $stmt = $pdo->prepare("SELECT id FROM parcel_codes WHERE parcel_id = :pid AND code = :code AND code_date = DATE(NOW()) LIMIT 1");
                 $stmt->execute(['pid' => $parcel_id, 'code' => $code]);
                 if ($stmt->fetch()) {
@@ -123,16 +158,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
                 $stmt->execute(['pid' => $parcel_id, 'txt' => $status_text]);
 
-                // Уведомляем правильного человека (получателя или отправителя в случае возврата)
-                $stmt_p = $pdo->prepare("SELECT sender_id, recipient_id, is_return FROM parcels WHERE id = :id");
-                $stmt_p->execute(['id' => $parcel_id]);
-                $p_data = $stmt_p->fetch();
-                $target_uid = ((int)($p_data['is_return'] ?? 0) === 1) ? $p_data['sender_id'] : $p_data['recipient_id'];
+                $target_uid = ((int)($parcel['is_return'] ?? 0) === 1) ? $parcel['sender_id'] : $parcel['recipient_id'];
+                notifyUser($target_uid, "Ваша посылка {$parcel['track_code']} успешно выдана.");
 
-                notifyUser($target_uid, "Ваша посылка $track успешно выдана.");
-                $success = "Посылка успешно выдана! Метод: $method";
+                $btn_receipt = "";
+                if ($is_batch) {
+                    $btn_receipt = "<a href='parcel_receipt.php?id={$parcel['id']}' class='btn btn-light btn-sm ms-2 x-small border'>Чек</a>";
+                }
+
+                $success .= $success_info . "Посылка {$parcel['track_code']} выдана! $btn_receipt<br>";
             } else {
-                $error = "Не удалось подтвердить выдачу. Проверьте код или введите данные паспорта.";
+                $error .= "Ошибка выдачи {$parcel['track_code']}: Неверный код или неоплачено.<br>";
             }
         }
     } catch (PDOException $e) {
@@ -166,8 +202,9 @@ include __DIR__ . '/header.php';
                 </div>
 
                 <form method="post" id="issueForm">
+                    <input type="hidden" name="batch_uid" id="batchUidInput" value="0">
                     <div class="mb-3">
-                        <label class="form-label fw-bold small text-uppercase">Трек-код посылки</label>
+                        <label class="form-label fw-bold small text-uppercase">Трек-код или BATCH-ID</label>
                         <input type="text" name="track" id="trackInput" class="form-control form-control-lg rounded-3" required placeholder="EP123456789BY" autofocus>
                     </div>
 
@@ -218,12 +255,17 @@ function startScanner() {
 
 function onScanSuccess(decodedText, decodedResult) {
     stopScanner();
-    // Формат QR: TRACK|CODE
+    // Формат QR: TRACK|CODE или BATCH|USER_ID|CODE
     if (decodedText.includes('|')) {
         const parts = decodedText.split('|');
-        document.getElementById('trackInput').value = parts[0];
-        document.getElementById('codeInput').value = parts[1];
-        // Автоматическая отправка формы после успешного скана QR
+        if (parts[0] === 'BATCH') {
+            document.getElementById('trackInput').value = 'BATCH_MODE';
+            document.getElementById('batchUidInput').value = parts[1];
+            document.getElementById('codeInput').value = parts[2];
+        } else {
+            document.getElementById('trackInput').value = parts[0];
+            document.getElementById('codeInput').value = parts[1];
+        }
         document.getElementById('issueForm').submit();
     } else {
         document.getElementById('trackInput').value = decodedText;

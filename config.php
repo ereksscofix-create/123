@@ -18,6 +18,11 @@ $options = [
 try {
      $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (\PDOException $e) {
+     // В режиме разработки можно вывести ошибку, но для безопасности лучше оставить заглушку
      die("Ошибка подключения к базе данных. Проверьте настройки в config.php.");
 }
+
+// ГЛОБАЛЬНЫЕ НАСТРОЙКИ ОРГАНИЗАЦИИ
+define('ORG_INVITE_CODE', 'EHPST-2024-WORK'); // Код для регистрации сотрудников
+define('SYSTEM_VERSION', '5.5.1-MASTER');
 ?>

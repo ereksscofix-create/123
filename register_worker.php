@@ -12,8 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $invite_code = trim($_POST['invite_code'] ?? '');
 
-    if ($invite_code !== 'POST-WORKER-2024') {
-        $error = "Неверный инвайт-код для регистрации работника.";
+    if ($invite_code !== ORG_INVITE_CODE) {
+        $error = "Неверный инвайт-код организации.";
     } elseif (empty($login) || empty($password) || empty($name)) {
         $error = "Заполните все поля.";
     } else {

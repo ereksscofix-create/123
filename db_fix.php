@@ -143,7 +143,8 @@ try {
         'transactions' => "id int(11) NOT NULL AUTO_INCREMENT, shift_id int(11) NOT NULL, worker_id int(11) NOT NULL, type enum('income','expense') NOT NULL, category varchar(50) NOT NULL, amount decimal(10,2) NOT NULL, related_id int(11) DEFAULT NULL, created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id)",
         'loyalty_cards' => "id int(11) NOT NULL AUTO_INCREMENT, user_id int(11) NOT NULL, card_number varchar(20) NOT NULL, level enum('classic','bronze','silver','gold','premium') DEFAULT 'classic', balance decimal(10,2) DEFAULT '0.00', payments_count int(11) DEFAULT 0, PRIMARY KEY (id), UNIQUE KEY (user_id), UNIQUE KEY (card_number)",
         'loyalty_confirm_codes' => "id int(11) NOT NULL AUTO_INCREMENT, card_id int(11) NOT NULL, code varchar(10) NOT NULL, amount decimal(10,2) NOT NULL, expires_at timestamp NULL, PRIMARY KEY (id)",
-        'loyalty_transactions' => "id int(11) NOT NULL AUTO_INCREMENT, card_id int(11) NOT NULL, amount decimal(10,2) NOT NULL, type enum('earn','spend') NOT NULL, expires_at timestamp NULL, created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id)"
+        'loyalty_transactions' => "id int(11) NOT NULL AUTO_INCREMENT, card_id int(11) NOT NULL, amount decimal(10,2) NOT NULL, type enum('earn','spend') NOT NULL, expires_at timestamp NULL, created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id)",
+        'user_batch_codes' => "id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, code VARCHAR(10) NOT NULL, code_date DATE NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, code_date)"
     ];
 
     foreach($new_tables as $tname => $tdef) {
