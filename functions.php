@@ -82,8 +82,10 @@ function hasReadyParcels($user_id) {
 }
 
 // Уведомление пользователя
-function notifyUser(int $user_id, string $message, string $type = 'info', bool $sendEmail = false): bool {
+function notifyUser($user_id, string $message, string $type = 'info', bool $sendEmail = false): bool {
     global $pdo;
+    $user_id = (int)$user_id;
+    if ($user_id <= 0) return false;
     try {
         // Убираем created_at, так как в некоторых схемах его нет
         $stmt = $pdo->prepare("INSERT INTO notifications (user_id, message, type) VALUES (:uid, :msg, :type)");

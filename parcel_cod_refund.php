@@ -38,24 +38,29 @@ if (isset($_POST['search'])) {
 
 if (isset($_POST['issue']) && isset($_POST['parcel_id'])) {
     $pid = (int)$_POST['parcel_id'];
+    $input_code = trim($_POST['refund_code'] ?? '');
     try {
         $stmt = $pdo->prepare("SELECT * FROM parcels WHERE id = :id LIMIT 1");
         $stmt->execute(['id' => $pid]);
         $parcel = $stmt->fetch();
 
         if ($parcel && $parcel['is_cod_paid'] && !$parcel['cod_refund_issued']) {
-            $stmt = $pdo->prepare("UPDATE parcels SET cod_refund_issued = 1 WHERE id = :id");
-            $stmt->execute(['id' => $pid]);
+            if ($parcel['refund_code'] !== $input_code) {
+                $error = "Неверный код возврата наложенного платежа.";
+            } else {
+                $stmt = $pdo->prepare("UPDATE parcels SET cod_refund_issued = 1 WHERE id = :id");
+                $stmt->execute(['id' => $pid]);
 
-            // Логируем расход (Выплата из кассы)
+                // Логируем расход (Выплата из кассы)
             logTransaction($shift['id'], $user['id'], 'expense', 'Возврат нал.плат. получателю', $parcel['cod'], $pid);
 
             $status_text = "Выплачен возврат наложенного платежа получателю [" . date('d.m.Y H:i') . "] (Оператор: " . ($user['name'] ?: $user['login']) . ")";
             $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
             $stmt->execute(['pid' => $pid, 'txt' => $status_text]);
 
-            $success = "Сумма " . number_format($parcel['cod'], 2) . " BYN успешно возвращена получателю!";
-            $parcel = null; // Очищаем для нового поиска
+                $success = "Сумма " . number_format($parcel['cod'], 2) . " BYN успешно возвращена получателю!";
+                $parcel = null; // Очищаем для нового поиска
+            }
         } else {
             $error = "Не удалось выполнить возврат. Возможно, он уже был выдан.";
         }
@@ -104,6 +109,10 @@ include __DIR__ . '/header.php';
 
                     <form method="post">
                         <input type="hidden" name="parcel_id" value="<?php echo $parcel['id']; ?>">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Код возврата (REF-XXXX-XXXX)</label>
+                            <input type="text" name="refund_code" class="form-control form-control-lg text-center" required placeholder="REF-XXXX-XXXX">
+                        </div>
                         <button type="submit" name="issue" class="btn btn-danger btn-lg w-100 rounded-pill py-3 fw-bold shadow-lg text-uppercase">
                             <i class="bi bi-cash me-2"></i>Выплатить возврат
                         </button>

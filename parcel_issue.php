@@ -22,19 +22,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $loyalty_card_num = trim($_POST['loyalty_card'] ?? '');
 
     try {
-        $stmt = $pdo->prepare("SELECT id, sender_id, recipient_id, is_paid, pay_on_delivery, cod, is_cod_paid, shelf, pickup_point, is_return FROM parcels WHERE track_code = :track LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, sender_id, recipient_id, is_paid, pay_on_delivery, cod, is_cod_paid, shelf, pickup_point, is_return, cod_return_required FROM parcels WHERE track_code = :track LIMIT 1");
         $stmt->execute(['track' => $track]);
         $parcel = $stmt->fetch();
 
         if (!$parcel) {
             $error = "Посылка с таким трек-кодом не найдена.";
         } else {
-            // Проверка: Не выдана ли уже?
-            $stmt_check = $pdo->prepare("SELECT id FROM parcel_status WHERE parcel_id = :pid AND (status_text LIKE '%выдана%' OR status_text LIKE '%доставлено%') LIMIT 1");
-            $stmt_check->execute(['pid' => $parcel['id']]);
-            if ($stmt_check->fetch()) {
-                $error = "Эта посылка уже была выдана ранее.";
-                $parcel = null;
+            // Проверка: Не выдана ли уже? (Если это ВОЗВРАТ, то игнорируем прошлые выдачи)
+            if ((int)($parcel['is_return'] ?? 0) === 0) {
+                $stmt_check = $pdo->prepare("SELECT id FROM parcel_status WHERE parcel_id = :pid AND (status_text LIKE '%выдана%' OR status_text LIKE '%доставлено%') LIMIT 1");
+                $stmt_check->execute(['pid' => $parcel['id']]);
+                if ($stmt_check->fetch()) {
+                    $error = "Эта посылка уже была выдана ранее получателю.";
+                    $parcel = null;
+                }
+            } else {
+                // Если это возврат, проверяем, не был ли УЖЕ выдан сам возврат
+                $stmt_check = $pdo->prepare("SELECT id FROM parcel_status WHERE parcel_id = :pid AND status_text LIKE 'Возврат выдан%' LIMIT 1");
+                $stmt_check->execute(['pid' => $parcel['id']]);
+                if ($stmt_check->fetch()) {
+                    $error = "Этот возврат уже был выдан отправителю ранее.";
+                    $parcel = null;
+                }
             }
         }
 
@@ -84,7 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($can_issue) {
-                if (!$parcel['is_paid']) {
+                if ($parcel['cod_return_required']) {
+                    $error = "<div class='p-3 bg-danger text-white rounded-3'>🚨 ВНИМАНИЕ: Необходимо вернуть наложенный платеж (" . number_format($parcel['cod'], 2) . " BYN), так как он уже был выплачен вам ранее.<br><a href='parcel_cod_repay.php?id={$parcel['id']}' class='btn btn-light btn-sm mt-2 fw-bold'>ВЕРНУТЬ ДЕНЬГИ В КАССУ</a></div>";
+                    $can_issue = false;
+                }
+
+                if ($can_issue && !$parcel['is_paid']) {
                     $error = "<div class='p-3 bg-danger text-white rounded-3'>🚨 ВНИМАНИЕ: Посылка НЕ ОПЛАЧЕНА! Выдача категорически запрещена.<br><a href='parcel_pay.php?id={$parcel['id']}' class='btn btn-light btn-sm mt-2 fw-bold'>ОПЛАТИТЬ УСЛУГИ СВЯЗИ</a></div>";
                     $can_issue = false;
                 }
@@ -97,7 +112,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($can_issue) {
                 $worker_name = $user['name'] ?: $user['login'];
-                $status_text = "Выдана $method [" . date('d.m.Y H:i') . "] (Оператор: $worker_name)";
+                $is_ret = (int)($parcel['is_return'] ?? 0) === 1;
+                $prefix = $is_ret ? "Возврат выдан" : "Выдана";
+                $status_text = "$prefix $method [" . date('d.m.Y H:i') . "] (Оператор: $worker_name)";
                 $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
                 $stmt->execute(['pid' => $parcel_id, 'txt' => $status_text]);
 

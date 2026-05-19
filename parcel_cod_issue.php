@@ -44,22 +44,28 @@ try {
 
     if (isset($_POST['issue']) && isset($_POST['parcel_id'])) {
         $id = (int)$_POST['parcel_id'];
+        $input_code = trim($_POST['payout_code'] ?? '');
+
         $stmt = $pdo->prepare("SELECT * FROM parcels WHERE id = :id LIMIT 1");
         $stmt->execute(['id' => $id]);
         $parcel = $stmt->fetch();
 
-        $stmt = $pdo->prepare("UPDATE parcels SET is_cod_issued = 1 WHERE id = :id");
-        $stmt->execute(['id' => $id]);
+        if ($parcel['cod_payout_code'] !== $input_code) {
+            $error = "Неверный код для получения выплаты.";
+        } else {
+            $stmt = $pdo->prepare("UPDATE parcels SET is_cod_issued = 1 WHERE id = :id");
+            $stmt->execute(['id' => $id]);
 
-        // Логируем расход (Выплата из кассы)
+            // Логируем расход (Выплата из кассы)
         logTransaction($shift['id'], $user['id'], 'expense', 'Выплата нал.плат. отправителю', $parcel['cod'], $id);
 
         $status_text = "Выплачен наложенный платеж отправителю [" . date('d.m.Y H:i') . "] (Оператор: " . ($user['name'] ?: $user['login']) . ")";
         $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
         $stmt->execute(['pid' => $id, 'txt' => $status_text]);
 
-        echo "<script>alert('Выплата успешно оформлена!'); window.location.href='dashboard.php';</script>";
-        exit;
+            echo "<script>alert('Выплата успешно оформлена!'); window.location.href='dashboard.php';</script>";
+            exit;
+        }
     }
 
 } catch (Exception $e) { die("Ошибка БД: " . $e->getMessage()); }
@@ -96,6 +102,10 @@ include __DIR__ . '/header.php';
                     <div class="alert alert-info small">Убедитесь, что личность получателя проверена.</div>
                     <form method="post">
                         <input type="hidden" name="parcel_id" value="<?php echo $parcel['id']; ?>">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Код выплаты (6 цифр)</label>
+                            <input type="text" name="payout_code" class="form-control form-control-lg text-center" required placeholder="XXXXXX" maxlength="6">
+                        </div>
                         <button type="submit" name="issue" class="btn btn-success btn-lg rounded-pill px-5 py-3 fw-bold w-100">ПОДТВЕРДИТЬ ВЫПЛАТУ</button>
                     </form>
                 <?php endif; ?>

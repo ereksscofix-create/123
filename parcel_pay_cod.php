@@ -98,8 +98,9 @@ if (isset($_POST['pay'])) {
             }
         }
 
-        $stmt = $pdo->prepare("UPDATE parcels SET is_cod_paid = 1, loyalty_earned = loyalty_earned + :e, loyalty_spent = loyalty_spent + :s WHERE id = :id");
-        $stmt->execute(['e' => $earned, 's' => $points_spent, 'id' => $id]);
+        $payout_code = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+        $stmt = $pdo->prepare("UPDATE parcels SET is_cod_paid = 1, cod_payout_code = :pc, loyalty_earned = loyalty_earned + :e, loyalty_spent = loyalty_spent + :s WHERE id = :id");
+        $stmt->execute(['pc' => $payout_code, 'e' => $earned, 's' => $points_spent, 'id' => $id]);
 
         logTransaction($shift['id'], $user['id'], 'income', 'Прием наложенного платежа', $final_cod, $id);
 
@@ -109,7 +110,7 @@ if (isset($_POST['pay'])) {
         $stmt->execute(['pid' => $id, 'txt' => $status_text]);
 
         // Уведомляем отправителя, что деньги получены
-        notifyUser($parcel['sender_id'], "Наложенный платеж за посылку {$parcel['track_code']} оплачен получателем. Ожидайте перевод.");
+        notifyUser($parcel['sender_id'], "Наложенный платеж за посылку {$parcel['track_code']} оплачен. Ваш код для получения денег: $payout_code. Пожалуйста, сохраните его.");
 
         header("Location: dashboard.php?pay_success=1&id=$id");
         exit;

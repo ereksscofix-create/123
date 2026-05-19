@@ -268,7 +268,7 @@ include __DIR__ . '/header.php';
                     <div class="bg-white p-3 rounded-4 shadow-sm border h-100 d-flex flex-column justify-content-between">
                         <div>
                             <div class="fw-bold text-primary mb-1"><?php echo e($p['track_code']); ?></div>
-                            <div class="small text-muted mb-2"><?php echo e($p['s_name'] ?: $p['s_login']); ?> → Вам</div>
+                            <div class="small text-muted mb-2"><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login'] ?: $p['recipient_name_ext']); ?></div>
                         </div>
                         <div class="d-grid">
                             <button class="btn btn-success rounded-pill fw-bold" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')">
@@ -394,9 +394,15 @@ include __DIR__ . '/header.php';
                                         <td class="ps-4">
                                             <div class="fw-bold text-dark mb-1"><?php echo e($p['track_code']); ?></div>
                                             <div class="x-small text-muted fw-bold"><?php echo e($p['tariff']); ?> · <?php echo number_format($p['weight'], 3); ?> кг</div>
+                                            <?php if ((int)$p['sender_id'] === $user_id && $p['is_cod_paid'] && !$p['is_cod_issued']): ?>
+                                                <div class="mt-1"><span class="badge bg-primary px-2 py-1" style="font-size:0.65rem;">КОД ВЫПЛАТЫ: <?php echo e($p['cod_payout_code']); ?></span></div>
+                                            <?php endif; ?>
+                                            <?php if ((int)$p['sender_id'] === $user_id && $p['cod_return_required']): ?>
+                                                <div class="mt-1"><span class="badge bg-danger px-2 py-1" style="font-size:0.65rem;">ДОЛГ ПО НАЛ.ПЛАТ: <?php echo number_format($p['cod'], 2); ?></span></div>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
-                                            <div class="small fw-bold text-dark mb-1"><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login']); ?></div>
+                                            <div class="small fw-bold text-dark mb-1"><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login'] ?: $p['recipient_name_ext']); ?></div>
                                         <div class="x-small text-muted text-truncate" style="max-width: 200px;">
                                             <span title="Откуда"><i class="bi bi-geo"></i> <?php echo e($p['sender_address'] ?: '...'); ?></span><br>
                                             <span title="Куда"><i class="bi bi-geo-fill"></i> <?php echo e($p['address']); ?></span>
@@ -467,6 +473,9 @@ include __DIR__ . '/header.php';
                                                 <?php if ($role !== 'worker' && (mb_stripos($p['last_status'] ?? '', 'ожидает') !== false || mb_stripos($p['last_status'] ?? '', 'прибыло') !== false)): ?>
                                                     <li><a class="dropdown-item py-2 fw-bold text-success" href="javascript:void(0)" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-2"></i>БЫСТРЫЙ QR</a></li>
                                                     <li><a class="dropdown-item py-2" href="parcel_pickup_qr.php?id=<?php echo $p['id']; ?>"><i class="bi bi-file-earmark-code me-2"></i>СТРАНИЦА QR</a></li>
+                                                    <?php if ((int)$p['recipient_id'] === $user_id && (int)$p['is_return'] === 0): ?>
+                                                        <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confRefuse(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-x-circle me-2"></i>ОТКАЗ ОТ ПОСЫЛКИ</a></li>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($role === 'worker' && $p['is_paid'] && !$p['is_refunded']): ?>
                                                     <li><a class="dropdown-item py-2 text-danger" href="parcel_refund.php?id=<?php echo $p['id']; ?>"><i class="bi bi-arrow-counterclockwise me-2"></i>ВОЗВРАТ ДЕНЕГ</a></li>
@@ -504,6 +513,12 @@ include __DIR__ . '/header.php';
                                     <div>
                                         <div class="h5 fw-bold text-primary mb-0"><?php echo e($p['track_code']); ?></div>
                                         <div class="x-small text-muted fw-bold"><?php echo e($p['tariff']); ?> · <?php echo number_format($p['weight'], 3); ?> кг</div>
+                                        <?php if ((int)$p['sender_id'] === $user_id && $p['is_cod_paid'] && !$p['is_cod_issued']): ?>
+                                            <div class="mt-1"><span class="badge bg-primary">КОД ВЫПЛАТЫ: <?php echo e($p['cod_payout_code']); ?></span></div>
+                                        <?php endif; ?>
+                                        <?php if ((int)$p['sender_id'] === $user_id && $p['cod_return_required']): ?>
+                                            <div class="mt-1"><span class="badge bg-danger">ДОЛГ ПО НАЛ.ПЛАТ: <?php echo number_format($p['cod'], 2); ?></span></div>
+                                        <?php endif; ?>
                                     </div>
                                     <?php
                                         $st = $p['last_status'] ?: 'Оформлена';
@@ -535,7 +550,7 @@ include __DIR__ . '/header.php';
                                     <?php endif; ?>
                                 </div>
                                 <div class="mb-3">
-                                    <div class="small fw-bold text-dark mb-1"><i class="bi bi-person me-2 text-muted"></i><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login']); ?></div>
+                                    <div class="small fw-bold text-dark mb-1"><i class="bi bi-person me-2 text-muted"></i><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login'] ?: $p['recipient_name_ext']); ?></div>
                                     <div class="small text-muted mb-1"><i class="bi bi-geo me-2 text-muted"></i><?php echo e($p['sender_address'] ?: '...'); ?></div>
                                     <div class="small text-muted"><i class="bi bi-geo-fill me-2 text-muted"></i><?php echo e($p['address']); ?></div>
                                 </div>
@@ -562,6 +577,9 @@ include __DIR__ . '/header.php';
                                     <div class="d-flex gap-1 mb-2">
                                         <button class="btn btn-success btn-sm flex-grow-1 rounded-pill fw-bold" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-1"></i>QR</button>
                                         <a href="parcel_pickup_qr.php?id=<?php echo $p['id']; ?>" class="btn btn-outline-success btn-sm rounded-pill"><i class="bi bi-box-arrow-up-right"></i></a>
+                                        <?php if ((int)$p['recipient_id'] === $user_id && (int)$p['is_return'] === 0): ?>
+                                            <button class="btn btn-outline-danger btn-sm rounded-pill" onclick="confRefuse(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')" title="Отказ"><i class="bi bi-x-circle"></i></button>
+                                        <?php endif; ?>
                                     </div>
                                 <?php endif; ?>
                                 <div class="d-flex gap-2">
@@ -768,6 +786,11 @@ function confDel(id, track) {
 function confReturn(id, track) {
     if (confirm('Вы уверены, что хотите оформить возврат для оплаченной посылки ' + track + '?')) {
         window.location.href = 'parcel_return.php?id=' + id;
+    }
+}
+function confRefuse(id, track) {
+    if (confirm('Вы действительно хотите ОТКАЗАТЬСЯ от получения посылки ' + track + '? Посылка будет отправлена обратно.')) {
+        window.location.href = 'parcel_refuse.php?id=' + id;
     }
 }
 </script>

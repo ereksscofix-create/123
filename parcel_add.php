@@ -64,27 +64,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $sender_pvz = $_POST['sender_pvz'] ?? '';
 
-    if ($sender_id <= 0 || $recipient_id <= 0 || empty($address)) {
+    $recipient_name = trim($_POST['recipient_name'] ?? '');
+
+    if ($sender_id <= 0 || empty($address)) {
         $error = "Пожалуйста, заполните все обязательные поля.";
-    } elseif ($sender_id === $recipient_id) {
+    } elseif ($sender_id === $recipient_id && $sender_id > 0) {
         $error = "Вы не можете отправить посылку самому себе.";
     } else {
         try {
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE id = :sid OR id = :rid");
-            $stmt->execute(['sid' => $sender_id, 'rid' => $recipient_id]);
-            $found_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-            if (!in_array($sender_id, $found_ids) || !in_array($recipient_id, $found_ids)) {
-                $error = "Один или оба ID пользователей не найдены.";
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE id = :sid");
+            $stmt->execute(['sid' => $sender_id]);
+            if (!$stmt->fetch()) {
+                $error = "ID отправителя не найден.";
+            } elseif ($recipient_id <= 0 && empty($recipient_name)) {
+                $error = "Укажите ID получателя или его ФИО.";
             } else {
                 // Попытка вставить со всеми новыми полями
                 try {
                     $stmt = $pdo->prepare("INSERT INTO parcels
-                        (track_code, sender_id, recipient_id, sender_address, sender_pvz, address, pickup_point, weight, cost, base_cost, cod_fee, dv_fee, inv_fee, tariff, cod, declared_value, inventory, pay_on_delivery)
-                        VALUES (:track, :sid, :rid, :saddr, :spvz, :addr, :pvz, :w, :c, :bc, :cf, :df, :if, :t, :cod, :dv, :inv, :pod)");
+                        (track_code, sender_id, recipient_id, recipient_name_ext, sender_address, sender_pvz, address, pickup_point, weight, cost, base_cost, cod_fee, dv_fee, inv_fee, tariff, cod, declared_value, inventory, pay_on_delivery)
+                        VALUES (:track, :sid, :rid, :rname, :saddr, :spvz, :addr, :pvz, :w, :c, :bc, :cf, :df, :if, :t, :cod, :dv, :inv, :pod)");
 
                     $stmt->execute([
-                        'track' => $track, 'sid' => $sender_id, 'rid' => $recipient_id,
+                        'track' => $track, 'sid' => $sender_id, 'rid' => ($recipient_id > 0 ? $recipient_id : null),
+                        'rname' => $recipient_name,
                         'saddr' => $sender_address, 'spvz' => $sender_pvz, 'addr' => $address, 'pvz' => $pickup_point, 'w' => $weight,
                         'c' => $cost, 'bc' => $base_cost, 'cf' => $cod_fee, 'df' => $dv_fee, 'if' => $inv_fee,
                         't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'inv' => $inventory, 'pod' => $pay_on_delivery
@@ -159,9 +162,14 @@ include __DIR__ . '/header.php';
                         <input type="number" name="sender_id" id="sender_id" class="form-control form-control-lg rounded-3" value="<?php echo (int)$user['id']; ?>" required oninput="validateSelfSend()">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold text-muted small text-uppercase">ID Получателя</label>
-                        <input type="number" name="recipient_id" id="recipient_id" class="form-control form-control-lg rounded-3" required placeholder="Введите ID" oninput="validateSelfSend()">
+                        <label class="form-label fw-bold text-muted small text-uppercase">ID Получателя (если есть)</label>
+                        <input type="number" name="recipient_id" id="recipient_id" class="form-control form-control-lg rounded-3" placeholder="Введите ID" oninput="validateSelfSend()">
                         <div id="selfSendError" class="text-danger x-small fw-bold mt-1" style="display:none;">Вы не можете отправить посылку самому себе!</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">ФИО Получателя (если нет ID)</label>
+                        <input type="text" name="recipient_name" class="form-control form-control-lg rounded-3" placeholder="Иванов Иван Иванович">
                     </div>
 
                     <div class="col-md-6">
