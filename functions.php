@@ -63,8 +63,8 @@ function hasReadyParcels($user_id) {
             SELECT p.id, p.track_code,
                 (SELECT status_text FROM parcel_status WHERE parcel_id = p.id ORDER BY id DESC LIMIT 1) as last_status
             FROM parcels p
-            WHERE ((p.recipient_id = :uid AND p.is_return = 0 AND p.is_deleted_by_recipient = 0)
-               OR (p.sender_id = :uid AND p.is_return = 1 AND p.is_deleted_by_sender = 0))
+            WHERE ((p.recipient_id = :uid AND p.is_return = 0 AND (p.is_deleted_by_recipient = 0 OR p.is_deleted_by_recipient IS NULL))
+               OR (p.sender_id = :uid AND p.is_return = 1 AND (p.is_deleted_by_sender = 0 OR p.is_deleted_by_sender IS NULL)))
         ");
         $stmt->execute(['uid' => (int)$user_id]);
         $parcels = $stmt->fetchAll();

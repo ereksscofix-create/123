@@ -117,6 +117,16 @@ try {
     $has_awaiting = !empty($ready_to_pickup);
 
     // Лояльность
+    if (isset($_POST['issue_card'])) {
+        $card_num = '5000' . str_pad(rand(0, 999999999999), 12, '0', STR_PAD_LEFT);
+        try {
+            $stmt = $pdo->prepare("INSERT INTO loyalty_cards (user_id, card_number, level, balance) VALUES (:uid, :cn, 'classic', 0)");
+            $stmt->execute(['uid' => $user_id, 'cn' => $card_num]);
+            header("Location: dashboard.php");
+            exit;
+        } catch (Exception $e) { $db_error = "Ошибка выпуска карты: " . $e->getMessage(); }
+    }
+
     $stmt = $pdo->prepare("SELECT * FROM loyalty_cards WHERE user_id = :uid");
     $stmt->execute(['uid' => $user_id]);
     $loyalty_card = $stmt->fetch();
