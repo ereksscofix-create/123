@@ -62,6 +62,9 @@ include __DIR__ . '/header.php';
                     <div>
                         <div class="x-small text-uppercase opacity-75 fw-bold">Трек-номер</div>
                         <h4 class="mb-0 fw-bold"><?php echo e($parcel['track_code']); ?></h4>
+                        <?php if($parcel['delivery_partner']): ?>
+                            <div class="badge bg-white text-primary mt-2 fw-bold">ПАРТНЁР: <?php echo strtoupper(e($parcel['delivery_partner'])); ?></div>
+                        <?php endif; ?>
                     </div>
                     <?php if($user): ?>
                         <?php if(!$followed): ?>

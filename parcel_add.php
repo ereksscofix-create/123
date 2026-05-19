@@ -42,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Расчет стоимости с комиссиями
     $multiplier = $rates[$tariff_key]['rate'] ?? 10;
+    $delivery_partner = trim($_POST['delivery_partner'] ?? '');
 
     // Специальная обработка для Марок (N и P)
     if ($tariff_key === 'N' || $tariff_key === 'P') {
@@ -79,18 +80,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($recipient_id <= 0 && empty($recipient_name)) {
                 $error = "Укажите ID получателя или его ФИО.";
             } else {
+                // ПРОВЕРКА ЗАДОЛЖЕННОСТИ ОТПРАВИТЕЛЯ (Возврат наложенного платежа)
+                $stmt_debt = $pdo->prepare("SELECT SUM(cod) FROM parcels WHERE sender_id = :uid AND cod_return_required = 1");
+                $stmt_debt->execute(['uid' => $sender_id]);
+                $debt = (float)$stmt_debt->fetchColumn();
+
+                if ($debt > 0) {
+                    $error = "🚨 ОФОРМЛЕНИЕ ЗАБЛОКИРОВАНО: У отправителя имеется задолженность по возврату наложенных платежей (сумма: " . number_format($debt, 2) . " BYN). Сначала необходимо погасить долг в кассе.";
+                } else {
+
                 // Попытка вставить со всеми новыми полями
                 try {
                     $stmt = $pdo->prepare("INSERT INTO parcels
-                        (track_code, sender_id, recipient_id, recipient_name_ext, sender_address, sender_pvz, address, pickup_point, weight, cost, base_cost, cod_fee, dv_fee, inv_fee, tariff, cod, declared_value, inventory, pay_on_delivery)
-                        VALUES (:track, :sid, :rid, :rname, :saddr, :spvz, :addr, :pvz, :w, :c, :bc, :cf, :df, :if, :t, :cod, :dv, :inv, :pod)");
+                        (track_code, sender_id, recipient_id, recipient_name_ext, sender_address, sender_pvz, address, pickup_point, weight, cost, base_cost, cod_fee, dv_fee, inv_fee, tariff, delivery_partner, cod, declared_value, inventory, pay_on_delivery)
+                        VALUES (:track, :sid, :rid, :rname, :saddr, :spvz, :addr, :pvz, :w, :c, :bc, :cf, :df, :if, :t, :dp, :cod, :dv, :inv, :pod)");
 
                     $stmt->execute([
                         'track' => $track, 'sid' => $sender_id, 'rid' => ($recipient_id > 0 ? $recipient_id : null),
                         'rname' => $recipient_name,
                         'saddr' => $sender_address, 'spvz' => $sender_pvz, 'addr' => $address, 'pvz' => $pickup_point, 'w' => $weight,
                         'c' => $cost, 'bc' => $base_cost, 'cf' => $cod_fee, 'df' => $dv_fee, 'if' => $inv_fee,
-                        't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'inv' => $inventory, 'pod' => $pay_on_delivery
+                        't' => $tariff_key, 'dp' => $delivery_partner, 'cod' => $cod, 'dv' => $declared_value, 'inv' => $inventory, 'pod' => $pay_on_delivery
                     ]);
                 } catch (PDOException $e) {
                     // Режим совместимости (если колонки еще не добавлены)
@@ -111,6 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute(['pid' => $parcel_id, 'txt' => $status_text]);
 
                 $success = "Посылка <strong>$track</strong> успешно оформлена!<br>Стоимость: <strong>" . number_format($cost, 2) . " BYN</strong><br><span class='text-danger fw-bold'>СТАТУС: ОЖИДАЕТ ОПЛАТЫ</span>" . ($success_warning ?? '');
+                }
             }
         } catch (PDOException $e) { $error = $e->getMessage(); }
     }
@@ -235,6 +246,20 @@ include __DIR__ . '/header.php';
                         <label class="form-label fw-bold text-muted small text-uppercase">Наложенный платеж</label>
                         <input type="number" name="cod" id="codInput" class="form-control rounded-3" step="0.01" value="0.00">
                     </div>
+
+                    <?php if($user['role'] === 'worker'): ?>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-primary small text-uppercase">Партнёр по доставке</label>
+                        <select name="delivery_partner" class="form-select form-select-lg rounded-3 border-primary shadow-none">
+                            <option value="">-- Собственная доставка EHPST --</option>
+                            <option value="Белпочта">Белпочта</option>
+                            <option value="Почта России">Почта России</option>
+                            <option value="OZON">OZON</option>
+                            <option value="СДЭК">СДЭК</option>
+                            <option value="Wildberries">Wildberries</option>
+                        </select>
+                    </div>
+                    <?php endif; ?>
 
                     <div class="col-12">
                         <label class="form-label fw-bold text-muted small text-uppercase">Опись вложения</label>

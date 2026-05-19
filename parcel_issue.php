@@ -4,6 +4,11 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/functions.php';
 checkLogin();
 
+if (isset($_GET['debug'])) {
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
+}
+
 $user = currentUser();
 if (!$user || $user['role'] !== 'worker') {
     die("Доступ запрещен. Только для работников.");

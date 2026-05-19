@@ -50,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $weight = (float)$_POST['weight'];
     $tariff_key = $_POST['tariff'] ?? 'ST';
     $inventory = trim($_POST['inventory'] ?? '');
+    $delivery_partner = trim($_POST['delivery_partner'] ?? '');
 
     $multiplier = $rates[$tariff_key]['rate'] ?? 10;
 
@@ -83,17 +84,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         try {
+    $recipient_id = !empty($_POST['recipient_id']) ? (int)$_POST['recipient_id'] : null;
+    $recipient_name_ext = trim($_POST['recipient_name_ext'] ?? '');
+
             $stmt = $pdo->prepare("UPDATE parcels SET
                 sender_address = :saddr, sender_pvz = :spvz, address = :addr, pickup_point = :pvz,
                 weight = :w, cost = :c, base_cost = :bc, cod_fee = :cf, dv_fee = :df, inv_fee = :if,
                 tariff = :t, cod = :cod, declared_value = :dv, inventory = :inv,
-                edit_fee = :ef, is_paid = 0
+        edit_fee = :ef, delivery_partner = :dp, is_paid = 0, recipient_id = :rid, recipient_name_ext = :rname
                 WHERE id = :id");
             $stmt->execute([
                 'saddr' => $sender_address, 'spvz' => $sender_pvz, 'addr' => $address, 'pvz' => $pickup_point,
                 'w' => $weight, 'c' => $total_cost, 'bc' => $base_cost, 'cf' => $cod_fee, 'df' => $dv_fee, 'if' => $inv_fee,
                 't' => $tariff_key, 'cod' => $cod, 'dv' => $declared_value, 'inv' => $inventory, 'id' => $id,
-                'ef' => $edit_fee
+        'ef' => $edit_fee, 'dp' => $delivery_partner, 'rid' => $recipient_id, 'rname' => $recipient_name_ext
             ]);
         } catch (PDOException $e) {
             if (strpos($e->getMessage(), 'sender_address') !== false) {
@@ -152,6 +156,15 @@ include __DIR__ . '/header.php';
                     </div>
 
                     <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">ID Получателя</label>
+                        <input type="number" name="recipient_id" class="form-control form-control-lg rounded-3" value="<?php echo e($parcel['recipient_id']); ?>">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">ФИО Получателя (External)</label>
+                        <input type="text" name="recipient_name_ext" class="form-control form-control-lg rounded-3" value="<?php echo e($parcel['recipient_name_ext']); ?>">
+                    </div>
+
+                    <div class="col-md-6">
                         <label class="form-label fw-bold text-muted small text-uppercase">Откуда (ПВЗ / Адрес)</label>
                         <div class="input-group">
                             <select name="sender_pvz" class="form-select border-warning" style="max-width: 120px;">
@@ -185,6 +198,20 @@ include __DIR__ . '/header.php';
                         <label class="form-label fw-bold text-muted small text-uppercase">Объявл. ценность (BYN)</label>
                         <input type="number" name="declared_value" id="dvInput" class="form-control form-control-lg rounded-3" step="0.01" value="<?php echo e($parcel['declared_value']); ?>">
                     </div>
+
+                    <?php if($user['role'] === 'worker'): ?>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-primary small text-uppercase">Партнёр по доставке</label>
+                        <select name="delivery_partner" class="form-select form-select-lg rounded-3 border-primary shadow-none">
+                            <option value="">-- Собственная доставка EHPST --</option>
+                            <option value="Белпочта" <?php echo ($parcel['delivery_partner']??'')==='Белпочта'?'selected':'';?>>Белпочта</option>
+                            <option value="Почта России" <?php echo ($parcel['delivery_partner']??'')==='Почта России'?'selected':'';?>>Почта России</option>
+                            <option value="OZON" <?php echo ($parcel['delivery_partner']??'')==='OZON'?'selected':'';?>>OZON</option>
+                            <option value="СДЭК" <?php echo ($parcel['delivery_partner']??'')==='СДЭК'?'selected':'';?>>СДЭК</option>
+                            <option value="Wildberries" <?php echo ($parcel['delivery_partner']??'')==='Wildberries'?'selected':'';?>>Wildberries</option>
+                        </select>
+                    </div>
+                    <?php endif; ?>
 
                     <script>
                     function checkStamp(val) {

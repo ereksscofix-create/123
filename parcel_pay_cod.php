@@ -10,7 +10,13 @@ if (!$user || $user['role'] !== 'worker') die("Доступ запрещен.");
 
 // Проверка открытой смены
 $shift = getOpenShift($user['id']);
-if (!$shift) die("Ошибка: Смена не открыта. <a href='shift_manage.php'>ОТКРЫТЬ СМЕНУ</a>");
+if (!$shift) {
+    $page_title = "Ошибка — EHPST";
+    include __DIR__ . '/header.php';
+    echo "<div class='alert alert-danger mt-5 p-5 rounded-4 text-center shadow-lg'><h2 class='fw-bold'>🚨 ОШИБКА: СМЕНА НЕ ОТКРЫТА</h2><p class='fs-5 mt-3'>Для приема оплаты наложенного платежа необходимо сначала открыть рабочую смену.</p><a href='shift_manage.php' class='btn btn-light fw-bold mt-4 px-4 rounded-pill'>ПЕРЕЙТИ К УПРАВЛЕНИЮ СМЕНАМИ</a></div>";
+    include __DIR__ . '/footer.php';
+    exit;
+}
 
 $id = (int)($_GET['id'] ?? 0);
 if (!$id) die("ID посылки не указан.");

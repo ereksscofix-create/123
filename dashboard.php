@@ -1,14 +1,12 @@
 <?php
 /**
- * dashboard.php — УЛЬТИМАТИВНЫЙ РАБОЧИЙ ДАШБОРД EHPST
- * Оптимизирован под мобильные устройства и десктоп.
+ * dashboard.php — ОПТИМИЗИРОВАННЫЙ ДАШБОРД EHPST (v3.0)
  */
 ob_start();
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/functions_finance.php';
 
-// 1. ПРОВЕРКА ВХОДА
 checkLogin();
 $user = currentUser();
 if (!$user) {
@@ -20,83 +18,44 @@ $user_id = (int)$user['id'];
 $role = $user['role'] ?? 'recipient';
 $name = $user['name'] ?: ($user['login'] ?: 'Пользователь');
 
-// 2. ПАРАМЕТРЫ
+// Параметры
 $filter = $_GET['filter'] ?? 'all';
 $q = trim((string)($_GET['q'] ?? ''));
 $page_title = "Дашборд — EHPST";
 
-// 3. ЗАГРУЗКА ДАННЫХ
-$unreadCount = 0;
-$notifications = [];
-$total_parcels = 0;
-$total_revenue = 0.0;
-$parcels = [];
-$codes = [];
-$loyalty_card = null;
-$loyalty_history = [];
-
 try {
-    // ПРОВЕРКА СРОКОВ ХРАНЕНИЯ (14 дней)
-    if ($role === 'worker') {
-        $stmt = $pdo->query("SELECT id, track_code, pickup_point FROM parcels
-                             WHERE shelf IS NOT NULL AND stored_at IS NOT NULL
-                             AND stored_at < DATE_SUB(NOW(), INTERVAL 14 DAY)
-                             AND storage_notified = 0 AND is_return = 0");
-        $expired = $stmt->fetchAll();
-        foreach ($expired as $ex) {
-            // Уведомляем работника
-            $msg = "Срок хранения посылки {$ex['track_code']} истёк ({$ex['pickup_point']}). Необходимо подготовить возврат.";
-            $stmt = $pdo->prepare("INSERT INTO notifications (user_id, message, type)
-                                   SELECT id, :msg, 'warning' FROM users WHERE role = 'worker'");
-            $stmt->execute(['msg' => $msg]);
-
-            // Авто-возврат (меняем статус и полку)
-            $stmt = $pdo->prepare("UPDATE parcels SET storage_notified = 1, is_return = 1, shelf = 6 WHERE id = :id");
-            $stmt->execute(['id' => $ex['id']]);
-
-            $status_text = "Срок хранения истёк. Автоматический возврат на полку возврата (6) [" . date('d.m.Y H:i') . "]";
-            $stmt = $pdo->prepare("INSERT INTO parcel_status (parcel_id, status_text) VALUES (:pid, :txt)");
-            $stmt->execute(['pid' => $ex['id'], 'txt' => $status_text]);
-        }
-    }
-
-    // Уведомления: Сначала считаем ВСЕ непрочитанные
+    // 1. УВЕДОМЛЕНИЯ
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = :uid AND is_read = 0");
     $stmt->execute(['uid' => $user_id]);
     $unreadCount = (int)$stmt->fetchColumn();
 
-    // Загружаем последние 15 уведомлений для списка
-    $stmt = $pdo->prepare("SELECT id, message, is_read FROM notifications WHERE user_id = :uid ORDER BY id DESC LIMIT 15");
+    $stmt = $pdo->prepare("SELECT id, message, is_read FROM notifications WHERE user_id = :uid ORDER BY id DESC LIMIT 10");
     $stmt->execute(['uid' => $user_id]);
     $notifications = $stmt->fetchAll();
 
-    // Статистика (всегда видим реальные цифры)
+    // 2. СТАТИСТИКА
     if ($role === 'worker') {
         $total_parcels = (int)$pdo->query("SELECT COUNT(*) FROM parcels")->fetchColumn();
         $total_revenue = (float)$pdo->query("SELECT IFNULL(SUM(cost),0) FROM parcels")->fetchColumn();
     } else {
-        // Статистика: Используем уникальные плейсхолдеры для надежности
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM parcels WHERE sender_id = :sid_stats OR recipient_id = :rid_stats");
-        $stmt->execute(['sid_stats' => $user_id, 'rid_stats' => $user_id]);
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM parcels WHERE sender_id = :uid OR recipient_id = :uid");
+        $stmt->execute(['uid' => $user_id]);
         $total_parcels = (int)$stmt->fetchColumn();
 
-        $stmt = $pdo->prepare("SELECT IFNULL(SUM(cost),0) FROM parcels WHERE sender_id = :sid_rev");
-        $stmt->execute(['sid_rev' => $user_id]);
+        $stmt = $pdo->prepare("SELECT IFNULL(SUM(cost),0) FROM parcels WHERE sender_id = :uid");
+        $stmt->execute(['uid' => $user_id]);
         $total_revenue = (float)$stmt->fetchColumn();
     }
 
-    // ПОИСК И СПИСОК
+    // 3. СПИСОК ПОСЫЛОК (Оптимизированный запрос)
     $params = [];
     $where = [];
 
     if ($role !== 'worker') {
-        // ВАЖНО: Видим свои (отправил/получил) И те, на которые подписались. Прячем удаленные.
-        $where[] = "((p.sender_id = :uid_sender AND p.is_deleted_by_sender = 0)
-                     OR (p.recipient_id = :uid_recipient AND p.is_deleted_by_recipient = 0)
-                     OR EXISTS(SELECT 1 FROM parcel_followers WHERE user_id = :uid_follow AND parcel_id = p.id))";
-        $params['uid_sender'] = $user_id;
-        $params['uid_recipient'] = $user_id;
-        $params['uid_follow'] = $user_id;
+        $where[] = "((p.sender_id = :u_sid AND p.is_deleted_by_sender = 0)
+                     OR (p.recipient_id = :u_rid AND p.is_deleted_by_recipient = 0))";
+        $params['u_sid'] = $user_id;
+        $params['u_rid'] = $user_id;
     }
 
     if ($filter === 'in_transit') {
@@ -108,82 +67,41 @@ try {
     }
 
     if ($q !== '') {
-        $where[] = "(p.track_code LIKE :q OR p.address LIKE :q OR s.name LIKE :q OR r.name LIKE :q OR s.login LIKE :q OR r.login LIKE :q)";
+        $where[] = "(p.track_code LIKE :q OR p.address LIKE :q OR p.recipient_name_ext LIKE :q OR s.name LIKE :q OR r.name LIKE :q)";
         $params['q'] = "%$q%";
     }
 
     $sql = "SELECT p.*,
             s.name AS s_name, s.login AS s_login,
             r.name AS r_name, r.login AS r_login,
-            (SELECT status_text FROM parcel_status WHERE parcel_id = p.id ORDER BY id DESC LIMIT 1) AS last_status,
-            (SELECT id FROM parcel_status WHERE parcel_id = p.id ORDER BY id DESC LIMIT 1) AS last_status_id
+            (SELECT status_text FROM parcel_status WHERE parcel_id = p.id ORDER BY id DESC LIMIT 1) AS last_status
             FROM parcels p
             LEFT JOIN users s ON p.sender_id = s.id
             LEFT JOIN users r ON p.recipient_id = r.id";
 
     if (!empty($where)) $sql .= " WHERE " . implode(" AND ", $where);
-    $sql .= " ORDER BY p.id DESC LIMIT 200";
+    $sql .= " ORDER BY p.id DESC LIMIT 100";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $parcels = $stmt->fetchAll();
 
-    // Программа лояльности
+    // 4. ПОСЫЛКИ К ВЫДАЧЕ
+    $ready_to_pickup = [];
+    foreach ($parcels as $p) {
+        $st = $p['last_status'] ?? '';
+        $is_r = ((int)$p['recipient_id'] === $user_id && (int)($p['is_return']??0) === 0);
+        $is_s = ((int)$p['sender_id'] === $user_id && (int)($p['is_return']??0) === 1);
+        if (($is_r || $is_s) && (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false)) {
+            $ready_to_pickup[] = $p;
+        }
+    }
+    $has_awaiting = !empty($ready_to_pickup);
+
+    // 5. КАРТА ЛОЯЛЬНОСТИ
     $stmt = $pdo->prepare("SELECT * FROM loyalty_cards WHERE user_id = :uid");
     $stmt->execute(['uid' => $user_id]);
     $loyalty_card = $stmt->fetch();
-
-    if ($loyalty_card) {
-        $stmt = $pdo->prepare("SELECT * FROM loyalty_transactions WHERE card_id = :cid ORDER BY id DESC LIMIT 5");
-        $stmt->execute(['cid' => $loyalty_card['id']]);
-        $loyalty_history = $stmt->fetchAll();
-    }
-
-    // Обработка выпуска/перевыпуска карты
-    if (isset($_POST['issue_card'])) {
-        $card_number = "5000" . str_pad(rand(0, 999999999999), 12, '0', STR_PAD_LEFT);
-        if ($loyalty_card) {
-            // Перевыпуск (номер меняется, баланс и уровень остаются)
-            $stmt = $pdo->prepare("UPDATE loyalty_cards SET card_number = :cn WHERE user_id = :uid");
-            $stmt->execute(['uid' => $user_id, 'cn' => $card_number]);
-            notifyUser($user_id, "Ваша карта лояльности успешно перевыпущена. Новый номер: $card_number");
-        } else {
-            // Новый выпуск
-            $stmt = $pdo->prepare("INSERT INTO loyalty_cards (user_id, card_number, level, balance) VALUES (:uid, :cn, 'classic', 0)");
-            $stmt->execute(['uid' => $user_id, 'cn' => $card_number]);
-        }
-        header("Location: dashboard.php"); exit;
-    }
-
-    // Коды выдачи
-    if ($role !== 'worker') {
-        $stmt = $pdo->prepare("
-            SELECT pc.*, p.track_code, COALESCE(s.name, s.login) as sender_name
-            FROM parcel_codes pc
-            JOIN parcels p ON pc.parcel_id = p.id
-            LEFT JOIN users s ON p.sender_id = s.id
-            WHERE p.recipient_id = :uid AND pc.code_date = DATE(NOW())
-            ORDER BY pc.id DESC
-        ");
-        $stmt->execute(['uid' => $user_id]);
-        $codes = $stmt->fetchAll();
-    }
-
-    // Посылки готовые к выдаче
-    $ready_to_pickup = [];
-    $has_awaiting = false;
-    if ($role !== 'worker') {
-        foreach ($parcels as $p) {
-            $st = $p['last_status'] ?? '';
-            $is_recipient = ((int)$p['recipient_id'] === $user_id && (int)$p['is_return'] === 0 && (int)($p['is_deleted_by_recipient']??0) === 0);
-            $is_sender_return = ((int)$p['sender_id'] === $user_id && (int)$p['is_return'] === 1 && (int)($p['is_deleted_by_sender']??0) === 0);
-
-            if (($is_recipient || $is_sender_return) && (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false)) {
-                $ready_to_pickup[] = $p;
-                $has_awaiting = true;
-            }
-        }
-    }
 
 } catch (PDOException $e) { $db_error = $e->getMessage(); }
 
@@ -191,545 +109,194 @@ include __DIR__ . '/header.php';
 ?>
 
 <style>
-/* Loyalty Card Style */
-.loyalty-card {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    color: #fff;
-    border-radius: 20px;
-    padding: 25px;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-}
-.loyalty-card.bronze { background: linear-gradient(135deg, #804a00 0%, #cd7f32 100%); }
-.loyalty-card.silver { background: linear-gradient(135deg, #757575 0%, #c0c0c0 100%); color: #333; }
-.loyalty-card.gold { background: linear-gradient(135deg, #d4af37 0%, #f9d71c 100%); color: #333; }
-.loyalty-card.premium { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); border: 2px solid #f9d71c; }
-.loyalty-barcode-bg { background: #fff; padding: 10px; border-radius: 10px; display: inline-block; margin-top: 15px; }
-
-/* Custom Styles for Super Cool Optimization */
-.btn-create { background: #6f42c1; color: #fff; border: none; }
-.btn-create:hover { background: #59359a; color: #fff; }
-.card-parcel { transition: 0.3s; border: 1px solid rgba(0,0,0,0.05); }
-.card-parcel:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important; }
-.mobile-fab { position: fixed; bottom: 20px; right: 20px; z-index: 1000; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(111, 66, 193, 0.4); }
-@media (min-width: 992px) { .mobile-fab { display: none; } }
-
-.qr-corner-fab {
-    position: fixed;
-    bottom: 90px;
-    right: 20px;
-    z-index: 999;
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    background: var(--success);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3);
-    transition: 0.3s;
-    text-decoration: none;
-}
-.qr-corner-fab:hover { transform: scale(1.1); color: #fff; }
-
-@media (max-width: 768px) {
-    .h3-mobile { font-size: 1.15rem; }
-    .card-body { padding: 0.85rem !important; }
-    .p-4 { padding: 0.85rem !important; }
-    .mb-3, .mb-4 { margin-bottom: 0.6rem !important; }
-    .btn { padding: 0.6rem 1.2rem; font-size: 0.85rem; }
-}
+    .dashboard-card { border-radius: 1.2rem; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.05); transition: 0.3s; }
+    .btn-purple { background: #6f42c1; color: #fff; border-radius: 50px; font-weight: 700; padding: 0.6rem 1.5rem; }
+    .btn-purple:hover { background: #59359a; color: #fff; transform: translateY(-2px); }
+    .status-badge { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; padding: 0.5rem 1rem; border-radius: 50px; }
+    .qr-fab { position: fixed; bottom: 30px; right: 30px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(25, 135, 84, 0.4); }
+    .parcel-row:hover { background: rgba(67, 97, 238, 0.03); }
 </style>
 
-<!-- Floating Action Button for Mobile -->
-<a href="parcel_add.php" class="mobile-fab btn-create d-lg-none">
-    <i class="bi bi-plus-lg fs-3"></i>
-</a>
-
-<!-- Floating QR Icon -->
+<!-- Floating QR Button -->
 <?php if ($has_awaiting): ?>
-<a href="my_qr_codes.php" class="qr-corner-fab animate-pulse" title="Мои QR-коды">
-    <i class="bi bi-qr-code fs-4"></i>
+<a href="my_qr_codes.php" class="qr-fab btn btn-success pulse-animation">
+    <i class="bi bi-qr-code fs-3"></i>
 </a>
 <?php endif; ?>
 
-<!-- ПОСЫЛКИ К ВЫДАЧЕ -->
-<?php if ($has_awaiting): ?>
-<div id="active-codes" class="alert alert-warning border-0 shadow-lg rounded-4 p-4 mb-4 animate-fade-in" style="background: rgba(255, 193, 7, 0.08); border: 1px solid rgba(255, 193, 7, 0.18) !important;">
-    <div class="d-flex align-items-start gap-3">
-        <div class="bg-warning bg-opacity-25 p-3 rounded-circle d-none d-md-block"><i class="bi bi-box-seam-fill fs-3 text-dark"></i></div>
-        <div class="flex-grow-1">
-            <h5 class="mb-3 fw-bold text-dark">📦 Готовы к получению (<?php echo count($ready_to_pickup); ?>)</h5>
-            <div class="row g-3">
-                <?php foreach ($ready_to_pickup as $p): ?>
-                <div class="col-md-6 col-lg-4">
-                    <div class="bg-white p-3 rounded-4 shadow-sm border h-100 d-flex flex-column justify-content-between">
-                        <div>
-                            <div class="fw-bold text-primary mb-1"><?php echo e($p['track_code']); ?></div>
-                            <div class="small text-muted mb-2"><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login'] ?: $p['recipient_name_ext']); ?></div>
-                        </div>
-                        <div class="d-grid">
-                            <button class="btn btn-success rounded-pill fw-bold" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')">
-                                <i class="bi bi-qr-code me-2"></i>ПОЛУЧИТЬ QR
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-    </div>
-</div>
-<?php endif; ?>
-
-<?php if (isset($_GET['pay_success'])): ?>
-    <div class="alert alert-success border-0 shadow-lg rounded-4 p-4 mb-4 animate-fade-in">
-        <div class="d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center">
-                <div class="bg-white bg-opacity-25 p-3 rounded-circle me-3"><i class="bi bi-check-circle-fill fs-2 text-success"></i></div>
-                <div>
-                    <h5 class="mb-0 fw-bold">Оплата успешно принята!</h5>
-                    <p class="mb-0 small opacity-75">Данные о посылке и бонусах обновлены.</p>
-                </div>
-            </div>
-            <a href="parcel_receipt.php?id=<?php echo (int)$_GET['id']; ?>" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">Смотреть чек</a>
-        </div>
-    </div>
-<?php endif; ?>
-
-<div class="row g-3 g-lg-4 animate-fade-in">
-
-    <!-- 1. ПРИВЕТСТВИЕ И СТАТИСТИКА -->
+<div class="row g-4">
+    <!-- ЛЕВАЯ КОЛОНКА -->
     <div class="col-lg-8">
-        <div class="card bg-primary text-white p-3 p-md-4 border-0 shadow-lg rounded-4 overflow-hidden position-relative mb-3 mb-md-4">
+        <!-- ВЕЛКАМ-БЛОК -->
+        <div class="card dashboard-card bg-primary text-white p-4 mb-4 position-relative overflow-hidden">
             <div class="position-relative z-index-2">
-                <h2 class="fw-bold mb-1 h3-mobile">Привет, <?php echo e($name); ?>! 👋</h2>
-                <p class="opacity-75 mb-3">Ваш системный номер: <strong>#<?php echo $user_id; ?></strong></p>
-                <div class="d-flex gap-2 flex-wrap">
-                    <a href="parcel_add.php" class="btn btn-create fw-bold shadow-sm rounded-pill px-4"><i class="bi bi-plus-lg me-2"></i>Создать посылку</a>
+                <h3 class="fw-bold mb-1">Привет, <?php echo e($name); ?>!</h3>
+                <p class="opacity-75">Рады видеть вас в системе EHPST. Ваш ID: <span class="fw-bold">#<?php echo $user_id; ?></span></p>
+                <div class="d-flex gap-2 mt-4 flex-wrap">
+                    <a href="parcel_add.php" class="btn btn-purple shadow-sm"><i class="bi bi-plus-lg me-2"></i>Оформить</a>
                     <?php if($role === 'worker'): ?>
-                        <a href="parcel_issue.php" class="btn btn-success border-0 fw-bold shadow-sm rounded-pill px-4">Выдача</a>
+                        <a href="parcel_issue.php" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm border-0"><i class="bi bi-box-arrow-right me-2"></i>Выдача</a>
+                        <a href="shift_manage.php" class="btn btn-dark rounded-pill px-4 fw-bold shadow-sm border-0"><i class="bi bi-calculator me-2"></i>Касса</a>
                     <?php endif; ?>
                     <?php if($has_awaiting): ?>
-                        <a href="my_qr_codes.php" class="btn btn-warning border-0 fw-bold shadow-sm rounded-pill px-4 text-dark">
-                            <i class="bi bi-qr-code-scan me-2"></i>МОИ QR-КОДЫ
-                        </a>
+                        <a href="my_qr_codes.php" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm text-dark border-0"><i class="bi bi-qr-code-scan me-2"></i>QR-коды</a>
                     <?php endif; ?>
                 </div>
             </div>
-            <!-- Иконка сдвинута, чтобы не мешать кнопкам -->
-            <i class="bi bi-lightning-charge position-absolute end-0 bottom-0 mb-n5 me-n4 opacity-10" style="font-size: 12rem;"></i>
+            <i class="bi bi-box-seam position-absolute end-0 bottom-0 mb-n4 me-n3 opacity-10" style="font-size: 10rem;"></i>
         </div>
 
         <?php if($role === 'worker'): ?>
-        <!-- ПАНЕЛЬ УПРАВЛЕНИЯ ДЛЯ РАБОТНИКА (отдельно от карточки с молнией) -->
-        <div class="card border-0 shadow-sm rounded-4 mb-3 mb-md-4 bg-white">
-            <div class="card-body p-3">
-                <div class="d-flex gap-2 flex-wrap">
-                    <a href="shift_manage.php" class="btn btn-dark border-0 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
-                        <i class="bi bi-calculator me-2"></i>Касса / Смены
-                    </a>
-                    <a href="transfer_add.php" class="btn btn-outline-primary border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
-                        <i class="bi bi-send-fill me-2"></i>Перевод (отправить)
-                    </a>
-                    <a href="transfer_list.php" class="btn btn-outline-primary border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
-                        <i class="bi bi-cash-stack me-2"></i>Переводы (упр.)
-                    </a>
-                    <a href="parcel_cod_refund.php" class="btn btn-outline-danger border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
-                        <i class="bi bi-arrow-counterclockwise me-2"></i>Возврат нал.плат.
-                    </a>
-                    <a href="transfer_refund_issue.php" class="btn btn-outline-danger border-2 fw-bold shadow-sm rounded-pill px-4 flex-grow-1 flex-md-grow-0">
-                        <i class="bi bi-arrow-return-left me-2"></i>Выплата возврата пер.
-                    </a>
-                </div>
+        <!-- ПАНЕЛЬ УПРАВЛЕНИЯ ФИНАНСАМИ ДЛЯ РАБОТНИКА -->
+        <div class="card dashboard-card bg-white p-4 mb-4 border-start border-4 border-success">
+            <h6 class="fw-bold text-success text-uppercase small mb-3"><i class="bi bi-gear-fill me-2"></i>Инструменты сотрудника</h6>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="transfer_add.php" class="btn btn-outline-primary fw-bold rounded-pill px-3">
+                    <i class="bi bi-send-fill me-1"></i> Оформить перевод
+                </a>
+                <a href="transfer_list.php" class="btn btn-outline-primary fw-bold rounded-pill px-3">
+                    <i class="bi bi-cash-stack me-1"></i> Список переводов
+                </a>
+                <a href="parcel_cod_refund.php" class="btn btn-outline-danger fw-bold rounded-pill px-3">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Возврат нал.плат.
+                </a>
+                <a href="transfer_refund_issue.php" class="btn btn-outline-danger fw-bold rounded-pill px-3">
+                    <i class="bi bi-arrow-return-left me-1"></i> Выплата возвр. перевода
+                </a>
             </div>
         </div>
         <?php endif; ?>
 
-        <!-- ФИЛЬТРЫ -->
-        <div class="card border-0 shadow-sm rounded-4 mb-4">
-            <div class="card-body p-3">
-                <form method="get" class="row g-2">
-                    <div class="col-md-6">
-                        <div class="input-group">
-                            <span class="input-group-text bg-light border-0 ps-3 rounded-pill-start"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" name="q" class="form-control border-0 bg-light rounded-pill-end shadow-none" placeholder="Поиск..." value="<?php echo e($q); ?>">
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <select name="filter" class="form-select border-0 bg-light rounded-pill shadow-none" onchange="this.form.submit()">
-                            <option value="all" <?php echo $filter === 'all' ? 'selected' : ''; ?>>Все отправления</option>
-                            <option value="in_transit" <?php echo $filter === 'in_transit' ? 'selected' : ''; ?>>В пути</option>
-                            <option value="awaiting" <?php echo $filter === 'awaiting' ? 'selected' : ''; ?>>Ожидают выдачи</option>
-                            <option value="delivered" <?php echo $filter === 'delivered' ? 'selected' : ''; ?>>Доставлены</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2 d-none d-md-block">
-                        <button class="btn btn-primary w-100 rounded-pill fw-bold border-0">Найти</button>
-                    </div>
-                </form>
+        <!-- ПОСЫЛКИ К ВЫДАЧЕ -->
+        <?php if ($has_awaiting): ?>
+        <div class="alert alert-warning dashboard-card border-0 p-4 mb-4 d-flex align-items-center justify-content-between">
+            <div>
+                <h5 class="fw-bold text-dark mb-1">📦 Готовы к получению: <?php echo count($ready_to_pickup); ?></h5>
+                <p class="mb-0 small text-muted">Покажите QR-код сотруднику почты для быстрого получения.</p>
             </div>
+            <a href="my_qr_codes.php" class="btn btn-dark rounded-pill fw-bold">СМОТРЕТЬ ВСЕ</a>
         </div>
+        <?php endif; ?>
 
         <!-- СПИСОК ПОСЫЛОК -->
-        <div class="mb-4">
-            <!-- Desktop View (Table) -->
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden d-none d-md-block">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light">
-                            <tr class="text-muted x-small text-uppercase">
-                                <th class="ps-4 border-0 py-3">Посылка</th>
-                                <th class="border-0 py-3">Маршрут</th>
-                                <th class="border-0 py-3">Статус</th>
-                                <th class="text-end pe-4 border-0 py-3">Действие</th>
-                            </tr>
-                        </thead>
-                        <tbody class="border-0">
-                            <?php if ($parcels): ?>
-                                <?php foreach ($parcels as $p): ?>
-                                    <tr>
-                                        <td class="ps-4">
-                                            <div class="fw-bold text-dark mb-1"><?php echo e($p['track_code']); ?></div>
-                                            <div class="x-small text-muted fw-bold"><?php echo e($p['tariff']); ?> · <?php echo number_format($p['weight'], 3); ?> кг</div>
-                                            <?php if ((int)$p['sender_id'] === $user_id && $p['is_cod_paid'] && !$p['is_cod_issued']): ?>
-                                                <div class="mt-1"><span class="badge bg-primary px-2 py-1" style="font-size:0.65rem;">КОД ВЫПЛАТЫ: <?php echo e($p['cod_payout_code']); ?></span></div>
-                                            <?php endif; ?>
-                                            <?php if ((int)$p['sender_id'] === $user_id && $p['cod_return_required']): ?>
-                                                <div class="mt-1"><span class="badge bg-danger px-2 py-1" style="font-size:0.65rem;">ДОЛГ ПО НАЛ.ПЛАТ: <?php echo number_format($p['cod'], 2); ?></span></div>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <div class="small fw-bold text-dark mb-1"><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login'] ?: $p['recipient_name_ext']); ?></div>
-                                        <div class="x-small text-muted text-truncate" style="max-width: 200px;">
-                                            <span title="Откуда"><i class="bi bi-geo"></i> <?php echo e($p['sender_address'] ?: '...'); ?></span><br>
-                                            <span title="Куда"><i class="bi bi-geo-fill"></i> <?php echo e($p['address']); ?></span>
-                                        </div>
-                                        </td>
-                                        <td>
-                                        <div class="mb-1">
-                                            <?php if ($p['is_paid']): ?>
-                                                <span class="badge bg-success bg-opacity-10 text-success x-small fw-bold">ОПЛАЧЕНО</span>
-                                            <?php else: ?>
-                                                <span class="badge bg-danger bg-opacity-10 text-danger x-small fw-bold">НЕ ОПЛАЧЕНО</span>
-                                            <?php endif; ?>
-                                            <?php if ($p['is_return']): ?>
-                                                <span class="badge bg-warning bg-opacity-10 text-dark x-small fw-bold ms-1">ВОЗВРАТ</span>
-                                            <?php endif; ?>
-                                            <?php if ($p['pay_on_delivery']): ?>
-                                                <span class="badge bg-info bg-opacity-10 text-info x-small fw-bold ms-1">ПРИ ПОЛУЧЕНИИ</span>
-                                            <?php endif; ?>
-                                            <?php if ($p['cod'] > 0): ?>
-                                                <span class="badge <?php echo $p['is_cod_paid'] ? 'bg-success' : 'bg-warning'; ?> bg-opacity-10 text-<?php echo $p['is_cod_paid'] ? 'success' : 'dark'; ?> x-small fw-bold ms-1">НАЛ.ПЛ: <?php echo $p['is_cod_paid'] ? 'ОК' : 'ЖДЕТ'; ?></span>
-                                            <?php endif; ?>
-                                            <?php if ($p['is_refunded']): ?>
-                                                <span class="badge bg-danger bg-opacity-10 text-danger x-small fw-bold ms-1">ВОЗВРАТ СРЕДСТВ</span>
-                                            <?php endif; ?>
-                                        </div>
-                                            <?php
-                                                $st = $p['last_status'] ?: 'Оформлена';
-                                                $bc = 'bg-primary';
-                                                if (mb_stripos($st, 'ожидает') !== false) $bc = 'bg-warning text-dark';
-                                                if (mb_stripos($st, 'выдана') !== false || mb_stripos($st, 'доставлено') !== false) $bc = 'bg-success text-white';
-                                            ?>
-                                            <span class="badge <?php echo $bc; ?> bg-opacity-10 text-<?php echo strpos($bc, 'white') !== false ? 'success' : str_replace('bg-', '', explode(' ', $bc)[0]); ?> px-3 py-2 fw-bold" style="font-size: 0.7rem;">
-                                                <?php echo e(mb_strtoupper($st)); ?>
-                                            </span>
-                                        </td>
-                                        <td class="text-end pe-4">
-                                            <div class="d-flex justify-content-end gap-2 align-items-center">
-                                                <?php if ($role !== 'worker' && (int)$p['recipient_id'] === $user_id && (mb_stripos($p['last_status'] ?? '', 'ожидает') !== false || mb_stripos($p['last_status'] ?? '', 'прибыло') !== false)): ?>
-                                                    <button class="btn btn-success btn-sm rounded-pill px-3 fw-bold border-0 shadow-sm" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')">
-                                                        <i class="bi bi-qr-code me-1"></i> QR-код
-                                                    </button>
-                                                <?php endif; ?>
-                                            <div class="dropdown">
-                                                <button class="btn btn-light btn-sm rounded-pill px-3 border shadow-none" type="button" data-bs-toggle="dropdown">
-                                                    <i class="bi bi-three-dots"></i>
-                                                </button>
-                                                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2">
-                                                    <li><a class="dropdown-item py-2" href="parcel_history.php?id=<?php echo $p['id']; ?>"><i class="bi bi-clock-history me-2 text-primary"></i>История</a></li>
-                                                    <li><a class="dropdown-item py-2" href="label_print.php?id=<?php echo $p['id']; ?>"><i class="bi bi-printer me-2 text-primary"></i>Печать</a></li>
-                                                <?php if ($p['is_paid']): ?>
-                                                    <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_receipt.php?id=<?php echo $p['id']; ?>"><i class="bi bi-receipt me-2"></i>ЧЕК ОБ ОПЛАТЕ</a></li>
-                                                <?php elseif ($role === 'worker'): ?>
-                                                    <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_pay.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash-coin me-2"></i>ОПЛАТИТЬ УСЛУГИ</a></li>
-                                                <?php endif; ?>
-
-                                                <?php if ($role === 'worker' && $p['cod'] > 0 && !$p['is_cod_paid']): ?>
-                                                    <li><a class="dropdown-item py-2 fw-bold text-primary" href="parcel_pay_cod.php?id=<?php echo $p['id']; ?>"><i class="bi bi-wallet2 me-2"></i>ПРИНЯТЬ НАЛ.ПЛ.</a></li>
-                                                <?php endif; ?>
-                                                <?php if ($role === 'worker' && $p['is_cod_paid'] && !$p['is_cod_issued']): ?>
-                                                    <li><a class="dropdown-item py-2 fw-bold text-info" href="parcel_cod_issue.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash me-2"></i>ВЫДАТЬ НАЛ.ПЛ. ОТПРАВИТЕЛЮ</a></li>
-                                                <?php endif; ?>
-                                                <?php if ($role === 'worker' && $p['refund_code'] && $p['is_cod_paid'] && !$p['cod_refund_issued']): ?>
-                                                    <li><a class="dropdown-item py-2 fw-bold text-danger" href="parcel_cod_refund.php?q=<?php echo $p['refund_code']; ?>"><i class="bi bi-arrow-counterclockwise me-2"></i>ВЕРНУТЬ НАЛ.ПЛ. ПОЛУЧАТЕЛЮ</a></li>
-                                                <?php endif; ?>
-                                                <?php if ($role === 'worker' && $p['pickup_point'] && !$p['shelf']): ?>
-                                                    <li><a class="dropdown-item py-2 fw-bold text-primary" href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>"><i class="bi bi-download me-2"></i>ПРИНЯТЬ В ПВЗ</a></li>
-                                                <?php endif; ?>
-                                                <?php if ($role !== 'worker' && (mb_stripos($p['last_status'] ?? '', 'ожидает') !== false || mb_stripos($p['last_status'] ?? '', 'прибыло') !== false)): ?>
-                                                    <li><a class="dropdown-item py-2 fw-bold text-success" href="javascript:void(0)" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-2"></i>БЫСТРЫЙ QR</a></li>
-                                                    <li><a class="dropdown-item py-2" href="parcel_pickup_qr.php?id=<?php echo $p['id']; ?>"><i class="bi bi-file-earmark-code me-2"></i>СТРАНИЦА QR</a></li>
-                                                    <?php if ((int)$p['recipient_id'] === $user_id && (int)$p['is_return'] === 0): ?>
-                                                        <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confRefuse(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-x-circle me-2"></i>ОТКАЗ ОТ ПОСЫЛКИ</a></li>
-                                                    <?php endif; ?>
-                                                <?php endif; ?>
-                                                <?php if ($role === 'worker' && $p['is_paid'] && !$p['is_refunded']): ?>
-                                                    <li><a class="dropdown-item py-2 text-danger" href="parcel_refund.php?id=<?php echo $p['id']; ?>"><i class="bi bi-arrow-counterclockwise me-2"></i>ВОЗВРАТ ДЕНЕГ</a></li>
-                                                <?php endif; ?>
-                                                    <li><hr class="dropdown-divider"></li>
-                                                    <li><a class="dropdown-item py-2" href="parcel_edit.php?id=<?php echo $p['id']; ?>"><i class="bi bi-pencil-square me-2 text-warning"></i>Изменить</a></li>
-                                                    <?php if ($role === 'worker'): ?>
-                                                        <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_status.php?id=<?php echo $p['id']; ?>"><i class="bi bi-plus-circle me-2"></i>Новый статус</a></li>
-                                                    <?php if($p['is_paid'] && !$p['is_return']): ?>
-                                                        <li><a class="dropdown-item py-2 text-danger" href="javascript:void(0)" onclick="confReturn(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-arrow-return-left me-2"></i>Оформить возврат</a></li>
-                                                    <?php endif; ?>
-                                                    <?php endif; ?>
-                                                    <li><hr class="dropdown-divider"></li>
-                                                    <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confDel(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-trash3 me-2"></i>Удалить</a></li>
-                                                </ul>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr><td colspan="4" class="text-center py-5 text-muted fw-bold">Список посылок пуст</td></tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Mobile View (Cards) -->
-            <div class="d-md-none">
-                <?php if ($parcels): ?>
-                    <?php foreach ($parcels as $p): ?>
-                        <div class="card card-parcel border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
-                            <div class="card-body p-4">
-                                <div class="d-flex justify-content-between align-items-start mb-3">
-                                    <div>
-                                        <div class="h5 fw-bold text-primary mb-0"><?php echo e($p['track_code']); ?></div>
-                                        <div class="x-small text-muted fw-bold"><?php echo e($p['tariff']); ?> · <?php echo number_format($p['weight'], 3); ?> кг</div>
-                                        <?php if ((int)$p['sender_id'] === $user_id && $p['is_cod_paid'] && !$p['is_cod_issued']): ?>
-                                            <div class="mt-1"><span class="badge bg-primary">КОД ВЫПЛАТЫ: <?php echo e($p['cod_payout_code']); ?></span></div>
-                                        <?php endif; ?>
-                                        <?php if ((int)$p['sender_id'] === $user_id && $p['cod_return_required']): ?>
-                                            <div class="mt-1"><span class="badge bg-danger">ДОЛГ ПО НАЛ.ПЛАТ: <?php echo number_format($p['cod'], 2); ?></span></div>
-                                        <?php endif; ?>
-                                    </div>
-                                    <?php
-                                        $st = $p['last_status'] ?: 'Оформлена';
-                                        $bc = 'bg-primary';
-                                        if (mb_stripos($st, 'ожидает') !== false) $bc = 'bg-warning text-dark';
-                                        if (mb_stripos($st, 'выдана') !== false || mb_stripos($st, 'доставлено') !== false) $bc = 'bg-success text-white';
-                                    ?>
-                                    <span class="badge <?php echo $bc; ?> py-2 px-3 rounded-pill fw-bold" style="font-size: 0.65rem;">
-                                        <?php echo e(mb_strtoupper($st)); ?>
-                                    </span>
-                                </div>
-                                <div class="mb-2">
-                                    <?php if ($p['is_paid']): ?>
-                                        <span class="badge bg-success bg-opacity-10 text-success x-small fw-bold">ОПЛАЧЕНО</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-danger bg-opacity-10 text-danger x-small fw-bold">НЕ ОПЛАЧЕНО</span>
-                                    <?php endif; ?>
-                                    <?php if ($p['is_return']): ?>
-                                        <span class="badge bg-warning bg-opacity-10 text-dark x-small fw-bold ms-1">ВОЗВРАТ</span>
-                                    <?php endif; ?>
-                                    <?php if ($p['pay_on_delivery']): ?>
-                                        <span class="badge bg-info bg-opacity-10 text-info x-small fw-bold ms-1">ПРИ ПОЛУЧЕНИИ</span>
-                                    <?php endif; ?>
-                                    <?php if ($p['cod'] > 0): ?>
-                                        <span class="badge <?php echo $p['is_cod_paid'] ? 'bg-success' : 'bg-warning'; ?> bg-opacity-10 text-<?php echo $p['is_cod_paid'] ? 'success' : 'dark'; ?> x-small fw-bold ms-1">НАЛ.ПЛ: <?php echo $p['is_cod_paid'] ? 'ОК' : 'ЖДЕТ'; ?></span>
-                                    <?php endif; ?>
-                                    <?php if ($p['is_refunded']): ?>
-                                        <span class="badge bg-danger bg-opacity-10 text-danger x-small fw-bold ms-1">ВОЗВРАТ СРЕДСТВ</span>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="mb-3">
-                                    <div class="small fw-bold text-dark mb-1"><i class="bi bi-person me-2 text-muted"></i><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login'] ?: $p['recipient_name_ext']); ?></div>
-                                    <div class="small text-muted mb-1"><i class="bi bi-geo me-2 text-muted"></i><?php echo e($p['sender_address'] ?: '...'); ?></div>
-                                    <div class="small text-muted"><i class="bi bi-geo-fill me-2 text-muted"></i><?php echo e($p['address']); ?></div>
-                                </div>
-                                <div class="d-flex gap-2 mb-2">
-                                    <a href="parcel_history.php?id=<?php echo $p['id']; ?>" class="btn btn-light btn-sm flex-grow-1 rounded-pill fw-bold">История</a>
-                                    <a href="label_print.php?id=<?php echo $p['id']; ?>" class="btn btn-light btn-sm flex-grow-1 rounded-pill fw-bold">Печать</a>
-                                </div>
-                                <?php if ($p['is_paid']): ?>
-                                    <a href="parcel_receipt.php?id=<?php echo $p['id']; ?>" class="btn btn-outline-success btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-receipt me-1"></i>ПОСМОТРЕТЬ ЧЕК</a>
-                                <?php elseif ($role === 'worker'): ?>
-                                    <a href="parcel_pay.php?id=<?php echo $p['id']; ?>" class="btn btn-success btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-cash-coin me-1"></i>ОПЛАТИТЬ УСЛУГИ</a>
-                                <?php endif; ?>
-
-                                <?php if ($role === 'worker' && $p['cod'] > 0 && !$p['is_cod_paid']): ?>
-                                    <a href="parcel_pay_cod.php?id=<?php echo $p['id']; ?>" class="btn btn-primary btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-wallet2 me-1"></i>ПРИНЯТЬ НАЛ.ПЛ.</a>
-                                <?php endif; ?>
-                                <?php if ($role === 'worker' && $p['refund_code'] && $p['is_cod_paid'] && !$p['cod_refund_issued']): ?>
-                                    <a href="parcel_cod_refund.php?q=<?php echo $p['refund_code']; ?>" class="btn btn-danger btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-arrow-counterclockwise me-1"></i>ВЕРНУТЬ НАЛ.ПЛ. ПОЛУЧАТЕЛЮ</a>
-                                <?php endif; ?>
-                                <?php if ($role === 'worker' && $p['pickup_point'] && !$p['shelf']): ?>
-                                    <a href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>" class="btn btn-primary btn-sm w-100 rounded-pill fw-bold mb-2"><i class="bi bi-download me-1"></i>ПРИНЯТЬ В ПВЗ</a>
-                                <?php endif; ?>
-                                <?php if ($role !== 'worker' && (mb_stripos($p['last_status'] ?? '', 'ожидает') !== false || mb_stripos($p['last_status'] ?? '', 'прибыло') !== false)): ?>
-                                    <div class="d-flex gap-1 mb-2">
-                                        <button class="btn btn-success btn-sm flex-grow-1 rounded-pill fw-bold" onclick="showIssueQR('<?php echo $p['track_code']; ?>', '<?php echo $p['id']; ?>')"><i class="bi bi-qr-code me-1"></i>QR</button>
-                                        <a href="parcel_pickup_qr.php?id=<?php echo $p['id']; ?>" class="btn btn-outline-success btn-sm rounded-pill"><i class="bi bi-box-arrow-up-right"></i></a>
-                                        <?php if ((int)$p['recipient_id'] === $user_id && (int)$p['is_return'] === 0): ?>
-                                            <button class="btn btn-outline-danger btn-sm rounded-pill" onclick="confRefuse(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')" title="Отказ"><i class="bi bi-x-circle"></i></button>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endif; ?>
-                                <div class="d-flex gap-2">
-                                    <div class="dropdown">
-                                        <button class="btn btn-light btn-sm rounded-pill px-3 shadow-none" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button>
-                                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2">
-                                            <li><a class="dropdown-item py-2" href="parcel_edit.php?id=<?php echo $p['id']; ?>"><i class="bi bi-pencil-square me-2 text-warning"></i>Изменить</a></li>
-                                            <?php if ($role === 'worker'): ?>
-                                                <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_status.php?id=<?php echo $p['id']; ?>"><i class="bi bi-plus-circle me-2"></i>Статус</a></li>
-                                            <?php endif; ?>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confDel(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-trash3 me-2"></i>Удалить</a></li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="text-center py-5 text-muted fw-bold">Нет посылок</div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. ПРАВАЯ ПАНЕЛЬ -->
-    <div class="col-lg-4">
-        <!-- КАРТА ЛОЯЛЬНОСТИ -->
-        <div class="mb-4">
-            <?php if($loyalty_card): ?>
-                <div class="loyalty-card <?php echo $loyalty_card['level']; ?>">
-                    <div class="d-flex justify-content-between align-items-start mb-4">
-                        <div>
-                            <div class="x-small text-uppercase fw-bold opacity-75">Карта лояльности</div>
-                            <div class="h5 fw-bold mb-0"><?php echo strtoupper($loyalty_card['level']); ?></div>
-                        </div>
-                        <i class="bi bi-cpu fs-3 opacity-50"></i>
-                    </div>
-                    <div class="mb-4">
-                        <div class="h4 mb-0 fw-bold" style="letter-spacing: 2px;">
-                            <?php echo implode(' ', str_split($loyalty_card['card_number'], 4)); ?>
-                        </div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-end">
-                        <div>
-                            <div class="x-small text-uppercase fw-bold opacity-75">Баланс бонусов</div>
-                            <div class="h4 fw-bold mb-0"><?php echo number_format($loyalty_card['balance'], 2); ?> Б.</div>
-                        </div>
-                        <div class="loyalty-barcode-bg" style="padding: 5px;">
-                            <div id="card-qr"></div>
-                        </div>
-                    </div>
-                </div>
-                <form method="post" class="mt-2 text-end">
-                    <button name="issue_card" class="btn btn-link btn-sm text-white opacity-50 p-0 text-decoration-none" onclick="return confirm('Перевыпустить карту? Старый номер станет недействителен.')">Перевыпустить карту</button>
+        <div class="card dashboard-card bg-white overflow-hidden">
+            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold">Мои отправления</h5>
+                <form method="get" class="d-flex gap-2">
+                    <select name="filter" class="form-select form-select-sm rounded-pill shadow-none" onchange="this.form.submit()">
+                        <option value="all" <?php echo $filter==='all'?'selected':'';?>>Все</option>
+                        <option value="in_transit" <?php echo $filter==='in_transit'?'selected':'';?>>В пути</option>
+                        <option value="awaiting" <?php echo $filter==='awaiting'?'selected':'';?>>Ожидают</option>
+                        <option value="delivered" <?php echo $filter==='delivered'?'selected':'';?>>Выданы</option>
+                    </select>
                 </form>
-
-                <?php if ($loyalty_history): ?>
-                    <div class="mt-4 pt-3 border-top border-white border-opacity-10">
-                        <div class="x-small text-uppercase fw-bold mb-2 opacity-75">Последние бонусы</div>
-                        <?php foreach ($loyalty_history as $lh): ?>
-                            <div class="d-flex justify-content-between align-items-center mb-1 x-small">
-                                <span class="opacity-75"><?php echo date('d.m', strtotime($lh['created_at'])); ?> — <?php echo $lh['type'] === 'earn' ? 'Начисление' : 'Списание'; ?></span>
-                                <span class="fw-bold <?php echo $lh['type'] === 'earn' ? 'text-success' : 'text-danger'; ?>">
-                                    <?php echo $lh['type'] === 'earn' ? '+' : '-'; ?><?php echo number_format($lh['amount'], 2); ?>
-                                </span>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            <?php endif; ?>
-        </div>
-
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-        <?php if($loyalty_card): ?>
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    new QRCode(document.getElementById("card-qr"), {
-                        text: "<?php echo $loyalty_card['card_number']; ?>",
-                        width: 60,
-                        height: 60,
-                        colorDark : "#000000",
-                        colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.H
-                    });
-                });
-            </script>
-        <?php endif; ?>
-
-        <?php if(!$loyalty_card): ?>
-                <div class="card p-4 text-center border-dashed border-2">
-                    <i class="bi bi-credit-card-2-front fs-1 text-muted mb-2"></i>
-                    <h6 class="fw-bold">Программа лояльности</h6>
-                    <p class="small text-muted mb-3">Копите бонусы и оплачивайте ими до 100% стоимости посылок!</p>
-                    <form method="post">
-                        <button name="issue_card" class="btn btn-primary btn-sm rounded-pill px-4">Выпустить карту</button>
-                    </form>
-                </div>
-            <?php endif; ?>
-        </div>
-
-        <div class="card border-0 shadow-sm border-start border-success border-5 rounded-4 mb-3 mb-md-4">
-            <div class="card-body p-3 p-md-4 d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="text-muted small fw-bold text-uppercase mb-1"><?php echo $role === 'worker' ? 'Выручка системы' : 'Мои расходы'; ?></div>
-                    <div class="h4 mb-0 fw-extrabold text-success"><?php echo number_format($total_revenue, 2); ?> <span class="small">BYN</span></div>
-                </div>
-                <div class="bg-success bg-opacity-10 p-2 p-md-3 rounded-circle text-success"><i class="bi bi-wallet2 fs-4 fs-md-3"></i></div>
             </div>
-        </div>
-
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-            <div class="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold">Уведомления</h5>
-                <?php if($unreadCount > 0): ?><span class="badge bg-danger rounded-pill"><?php echo $unreadCount; ?></span><?php endif; ?>
-            </div>
-            <div class="card-body p-0">
-                <div class="list-group list-group-flush">
-                    <?php if ($notifications): ?>
-                        <?php foreach ($notifications as $n): ?>
-                            <div class="list-group-item p-4 border-0 border-bottom <?php echo $n['is_read'] ? '' : 'bg-primary bg-opacity-5'; ?>">
-                                <div class="small fw-bold mb-2 text-dark" style="line-height:1.4"><?php echo e($n['message']); ?></div>
-                                <div class="d-flex gap-3">
-                                    <?php if (!$n['is_read']): ?>
-                                        <a href="notifications.php?action=read&id=<?php echo $n['id']; ?>" class="x-small text-primary text-decoration-none fw-bold">ПРОЧИТАНО</a>
-                                    <?php endif; ?>
-                                    <a href="notifications.php?action=delete&id=<?php echo $n['id']; ?>" class="x-small text-danger text-decoration-none fw-bold">УДАЛИТЬ</a>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr class="x-small text-muted text-uppercase">
+                            <th class="ps-4">Трек-код</th>
+                            <th>Маршрут</th>
+                            <th>Статус</th>
+                            <th class="text-end pe-4">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if($parcels): foreach($parcels as $p): ?>
+                        <tr class="parcel-row">
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark"><?php echo e($p['track_code']); ?></div>
+                                <div class="x-small text-muted"><?php echo e($p['tariff']); ?> · <?php echo number_format($p['weight'],2); ?> кг</div>
+                                <?php if($p['delivery_partner']): ?>
+                                    <span class="badge bg-info bg-opacity-10 text-info x-small mt-1"><?php echo e($p['delivery_partner']); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <div class="small fw-bold"><?php echo e($p['s_name']?:$p['s_login']); ?> → <?php echo e($p['r_name']?:$p['r_login']?:$p['recipient_name_ext']); ?></div>
+                                <div class="x-small text-muted text-truncate" style="max-width: 150px;"><?php echo e($p['address']); ?></div>
+                            </td>
+                            <td>
+                                <?php
+                                    $st = $p['last_status'] ?: 'Оформлена';
+                                    $cls = 'bg-primary';
+                                    if(mb_stripos($st, 'ожидает')!==false) $cls='bg-warning text-dark';
+                                    if(mb_stripos($st, 'выдана')!==false || mb_stripos($st, 'доставлено')!==false) $cls='bg-success';
+                                ?>
+                                <span class="status-badge badge <?php echo $cls; ?> bg-opacity-10 text-<?php echo str_replace('bg-','',$cls); ?>"><?php echo e($st); ?></span>
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="dropdown">
+                                    <button class="btn btn-light btn-sm rounded-pill px-3" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4">
+                                        <li><a class="dropdown-item py-2" href="parcel_history.php?id=<?php echo $p['id']; ?>"><i class="bi bi-clock-history me-2 text-primary"></i>История</a></li>
+                                        <?php if($role === 'worker'): ?>
+                                            <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_status.php?id=<?php echo $p['id']; ?>"><i class="bi bi-plus-circle me-2"></i>Новый статус</a></li>
+                                            <li><a class="dropdown-item py-2" href="parcel_edit.php?id=<?php echo $p['id']; ?>"><i class="bi bi-pencil me-2 text-warning"></i>Правка</a></li>
+                                            <?php if($p['pickup_point'] && !$p['shelf']): ?>
+                                                <li><a class="dropdown-item py-2 fw-bold text-primary" href="parcel_pvz_receive.php?id=<?php echo $p['id']; ?>"><i class="bi bi-download me-2"></i>ПРИНЯТЬ В ПВЗ</a></li>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                        <?php
+                                            $is_r = ((int)$p['recipient_id'] === $user_id && (int)($p['is_return']??0) === 0);
+                                            $is_s = ((int)$p['sender_id'] === $user_id && (int)($p['is_return']??0) === 1);
+                                            if (($is_r || $is_s) && (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false)):
+                                        ?>
+                                            <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_pickup_qr.php?id=<?php echo $p['id']; ?>"><i class="bi bi-qr-code me-2"></i>QR-КОД</a></li>
+                                        <?php endif; ?>
+                                    </ul>
                                 </div>
-                            </div>
-                        <?php endforeach; ?>
-                        <div class="p-3 text-center"><a href="notifications.php?action=read_all" class="btn btn-light btn-sm w-100 rounded-pill fw-bold">Прочитать все</a></div>
-                    <?php else: ?>
-                        <div class="p-5 text-center text-muted fw-bold">Уведомлений нет</div>
-                    <?php endif; ?>
-                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; else: ?>
+                        <tr><td colspan="4" class="text-center py-5 text-muted">Ничего не найдено</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Issue QR Modal -->
-<div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content rounded-4 border-0">
-            <div class="modal-body p-5 text-center">
-                <h5 class="fw-bold mb-4">Ваш код для получения</h5>
-                <div id="issue-qr" class="d-flex justify-content-center mb-4"></div>
-                <div class="h4 fw-bold text-primary mb-2" id="qr-track"></div>
-                <div class="small text-muted mb-4">Покажите этот код сотруднику ПВЗ</div>
-                <button type="button" class="btn btn-light rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Закрыть</button>
+    <!-- ПРАВАЯ КОЛОНКА -->
+    <div class="col-lg-4">
+        <!-- БАЛАНС / ЛОЯЛЬНОСТЬ -->
+        <div class="card dashboard-card bg-dark text-white p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h6 class="x-small text-uppercase opacity-50 fw-bold">Бонусный баланс</h6>
+                    <h2 class="fw-bold mb-0"><?php echo number_format($loyalty_card['balance']??0, 2); ?> <span class="fs-6 opacity-50">BYN</span></h2>
+                </div>
+                <i class="bi bi-credit-card fs-1 opacity-25"></i>
+            </div>
+            <?php if($loyalty_card): ?>
+                <div class="small mb-1">Уровень: <span class="badge bg-primary"><?php echo strtoupper($loyalty_card['level']); ?></span></div>
+                <div class="small fw-bold mb-3" style="letter-spacing: 1.5px;"><?php echo implode(' ', str_split($loyalty_card['card_number'], 4)); ?></div>
+                <div class="p-2 bg-white rounded-3 d-inline-block">
+                    <div id="mini-qr"></div>
+                </div>
+            <?php else: ?>
+                <p class="small opacity-75">Вы еще не участвуете в программе лояльности.</p>
+                <form method="post"><button name="issue_card" class="btn btn-outline-light btn-sm rounded-pill w-100 fw-bold">АКТИВИРОВАТЬ КАРТУ</button></form>
+            <?php endif; ?>
+        </div>
+
+        <!-- УВЕДОМЛЕНИЯ -->
+        <div class="card dashboard-card bg-white p-0 overflow-hidden">
+            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between">
+                <h6 class="mb-0 fw-bold">Уведомления</h6>
+                <?php if($unreadCount>0): ?><span class="badge bg-danger rounded-pill"><?php echo $unreadCount; ?></span><?php endif; ?>
+            </div>
+            <div class="list-group list-group-flush">
+                <?php if($notifications): foreach($notifications as $n): ?>
+                    <div class="list-group-item p-3 border-0 border-bottom <?php echo $n['is_read']?'':'bg-light'; ?>">
+                        <div class="small mb-1"><?php echo e($n['message']); ?></div>
+                        <div class="d-flex gap-2">
+                            <?php if(!$n['is_read']): ?><a href="notifications.php?action=read&id=<?php echo $n['id']; ?>" class="x-small text-primary fw-bold text-decoration-none">ПРОЧИТАНО</a><?php endif; ?>
+                            <a href="notifications.php?action=delete&id=<?php echo $n['id']; ?>" class="x-small text-danger fw-bold text-decoration-none">УДАЛИТЬ</a>
+                        </div>
+                    </div>
+                <?php endforeach; else: ?>
+                    <div class="p-4 text-center text-muted small">Уведомлений нет</div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -737,65 +304,28 @@ include __DIR__ . '/header.php';
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-let qrMaker = null;
-function showIssueQR(track, id) {
-    document.getElementById('qr-track').textContent = track;
-    const qrContainer = document.getElementById('issue-qr');
-    qrContainer.innerHTML = '';
-
-    // Получаем код из API или генерируем на месте (для простоты - запрос к parcel_codes)
-    fetch('functions.php?action=get_issue_code&id=' + id)
-        .then(r => r.json())
-        .then(data => {
-            if (data.code) {
-                new QRCode(qrContainer, {
-                    text: track + "|" + data.code,
-                    width: 200,
-                    height: 200
-                });
-                new bootstrap.Modal(document.getElementById('qrModal')).show();
-            } else {
-                alert('Ошибка получения кода. Обратитесь в поддержку.');
-            }
-        });
-}
-
-function scrollToPickup() {
-    // Ищем первую посылку с кнопкой QR
-    const qrBtn = document.querySelector('.btn-success[onclick^="showIssueQR"]');
-    if (qrBtn) {
-        qrBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        qrBtn.classList.add('pulse-animation');
-        setTimeout(() => qrBtn.classList.remove('pulse-animation'), 3000);
-    } else {
-        // Если кнопка не в списке (например, отфильтровано), идем к блоку активных кодов
-        const activeBlock = document.getElementById('active-codes');
-        if (activeBlock) {
-            activeBlock.scrollIntoView({ behavior: 'smooth' });
-        } else {
-            alert('У вас есть посылки к выдаче. Пожалуйста, найдите их в списке ниже и нажмите кнопку "QR-код".');
-        }
-    }
-}
-
 function confDel(id, track) {
-    if (confirm('ВНИМАНИЕ! Посылка ' + track + ' будет полностью удалена. Продолжить?')) {
+    if (confirm('ВНИМАНИЕ! Посылка ' + track + ' будет полностью удалена из системы. Продолжить?')) {
         window.location.href = 'parcel_delete.php?id=' + id;
     }
 }
 function confReturn(id, track) {
-    if (confirm('Вы уверены, что хотите оформить возврат для оплаченной посылки ' + track + '?')) {
+    if (confirm('Оформить возврат для посылки ' + track + '? Она будет отправлена обратно отправителю.')) {
         window.location.href = 'parcel_return.php?id=' + id;
     }
 }
 function confRefuse(id, track) {
-    if (confirm('Вы действительно хотите ОТКАЗАТЬСЯ от получения посылки ' + track + '? Посылка будет отправлена обратно.')) {
+    if (confirm('Вы действительно хотите ОТКАЗАТЬСЯ от получения посылки ' + track + '? Она будет немедленно отправлена обратно.')) {
         window.location.href = 'parcel_refuse.php?id=' + id;
     }
 }
+
+<?php if($loyalty_card): ?>
+    new QRCode(document.getElementById("mini-qr"), {
+        text: "<?php echo $loyalty_card['card_number']; ?>",
+        width: 80, height: 80
+    });
+<?php endif; ?>
 </script>
 
-<?php
-include __DIR__ . '/footer.php';
-ob_end_flush();
-?>
+<?php include __DIR__ . '/footer.php'; ob_end_flush(); ?>

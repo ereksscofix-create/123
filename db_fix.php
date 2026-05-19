@@ -1,15 +1,29 @@
 <?php
-// db_fix.php — Автоматическое исправление структуры БД (Версия 13.0)
+// db_fix.php — Автоматическое исправление структуры БД (Версия 14.0)
 require_once __DIR__ . '/config.php';
 
 echo "<style>body{font-family:sans-serif;line-height:1.6;padding:20px;background:#f4f7f6;} .log{background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.1);} .ok{color:green;font-weight:bold;} .err{color:red;font-weight:bold;} .warn{color:orange;font-weight:bold;}</style>";
-echo "<h2>Исправление структуры БД EHPST (Версия 13.0)</h2>";
+echo "<h2>Исправление структуры БД EHPST (Версия 14.0)</h2>";
 echo "<div class='log'>";
 
 try {
     // 1. Отключаем проверки внешних ключей
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
     echo "<li>Проверки внешних ключей отключены.</li>";
+
+    // ПЕРЕДЕЛЫВАЕМ ВНЕШНИЙ КЛЮЧ RECIPIENT_ID (Должен разрешать NULL)
+    try {
+        $pdo->exec("ALTER TABLE parcels DROP FOREIGN KEY `parcels_ibfk_2` ");
+        echo "<li>Внешний ключ `parcels_ibfk_2` удален для перенастройки.</li>";
+    } catch(Exception $e) {}
+
+    $pdo->exec("ALTER TABLE parcels MODIFY recipient_id INT(11) NULL");
+    try {
+        $pdo->exec("ALTER TABLE parcels ADD CONSTRAINT `parcels_ibfk_2` FOREIGN KEY (`recipient_id`) REFERENCES `users` (`id`) ON DELETE SET NULL");
+        echo "<li>Внешний ключ `parcels_ibfk_2` пересоздан (разрешен NULL).</li>";
+    } catch(Exception $e) {
+        echo "<li class='warn'>Не удалось создать внешний ключ (возможно, уже есть с другим именем).</li>";
+    }
 
     // 2. Исправление parcel_codes
     echo "<li><b>Обработка таблицы parcel_codes:</b><ul>";
@@ -94,7 +108,8 @@ try {
         'loyalty_spent' => "DECIMAL(10,2) DEFAULT 0.00",
         'cod_payout_code' => "VARCHAR(20) DEFAULT NULL",
         'cod_return_required' => "TINYINT(1) DEFAULT 0",
-        'recipient_name_ext' => "VARCHAR(255) DEFAULT NULL AFTER recipient_id"
+        'recipient_name_ext' => "VARCHAR(255) DEFAULT NULL AFTER recipient_id",
+        'delivery_partner' => "VARCHAR(50) DEFAULT NULL AFTER tariff"
     ];
 
     foreach($to_add as $col => $def) {
