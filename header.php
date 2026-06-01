@@ -1,188 +1,89 @@
+<?php
+// header.php
+require_once 'config.php';
+?>
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="<?= $lang ?>">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#4361ee">
-    <title><?php echo $page_title ?? 'EHPST - Почтовая система'; ?></title>
-
-    <!-- Google Fonts: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Bootstrap 5 CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= SITE_NAME ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-
     <style>
         :root {
-            --primary: #4361ee;
-            --primary-dark: #3f37c9;
-            --primary-light: #4895ef;
-            --success: #06c755;
-            --warning: #ff9500;
-            --danger: #ff3b30;
-            --text-dark: #1a1a2e;
-            --text-gray: #6b7280;
-            --bg-light: #f4f7fe;
-            --bg-white: #ffffff;
-            --border-color: #e5e7eb;
+            --rainbow-gradient: linear-gradient(to right, #ff2400, #e81d1d, #e8b21d, #1de840, #1ddde8, #2b1de8, #dd00f3);
         }
-
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--bg-light);
-            color: var(--text-dark);
-            font-size: 16px;
-            -webkit-font-smoothing: antialiased;
-            overflow-x: hidden;
+            background-color: #f8f9fa;
         }
-
-        @media (max-width: 768px) {
-            body { font-size: 14px; }
-            .container { padding-left: 12px; padding-right: 12px; }
-        }
-
-        /* ===== NAVBAR ===== */
         .navbar {
-            background: rgba(255, 255, 255, 0.9) !important;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border-color);
-            padding: 0.8rem 0;
-            z-index: 1050;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,.05);
+            border-bottom: 3px solid transparent;
+            border-image: var(--rainbow-gradient);
+            border-image-slice: 1;
         }
-
-        .navbar-brand {
-            font-weight: 800;
-            font-size: 1.5rem;
-            color: var(--primary) !important;
-            letter-spacing: -0.5px;
+        .rainbow-text {
+            background: var(--rainbow-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
         }
-
-        .nav-link {
-            font-weight: 600;
-            color: var(--text-dark) !important;
-            font-size: 0.9rem;
-            padding: 0.5rem 1.2rem !important;
-            border-radius: 10px;
-            transition: all 0.2s;
-        }
-
-        .nav-link:hover {
-            background: rgba(67, 97, 238, 0.05);
-            color: var(--primary) !important;
-        }
-
-        .dropdown-menu {
-            border: none;
-            border-radius: 16px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            padding: 0.6rem;
-            margin-top: 10px;
-        }
-
-        .dropdown-item {
-            padding: 0.7rem 1.2rem;
-            font-weight: 600;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-        }
-
-        .dropdown-item:hover {
-            background-color: var(--primary);
-            color: white;
-            transform: translateX(3px);
-        }
-
-        /* ===== GLOBAL STYLES ===== */
         .card {
+            border-radius: 15px;
             border: none;
-            border-radius: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px rgba(0,0,0,.05);
         }
-
-        .btn {
-            border-radius: 14px;
-            font-weight: 700;
-            padding: 0.8rem 1.5rem;
-            transition: all 0.2s;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        .btn-rainbow {
+            background: var(--rainbow-gradient);
+            color: white;
             border: none;
-            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+            transition: opacity 0.3s;
         }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(67, 97, 238, 0.4);
-            background: var(--primary-dark);
+        .btn-rainbow:hover {
+            opacity: 0.9;
+            color: white;
         }
-
-        .main-content {
-            padding: 2.5rem 0;
-            min-height: calc(100vh - 180px);
+        .nav-link.active {
+            font-weight: bold;
+            color: #000 !important;
         }
-
-        @media (max-width: 768px) {
-            .main-content { padding: 1rem 0; }
-        }
-
-        .x-small { font-size: 0.75rem; }
     </style>
 </head>
 <body>
-    <?php $u = currentUser(); ?>
-    <nav class="navbar navbar-expand-lg sticky-top">
+    <nav class="navbar navbar-expand-lg mb-4">
         <div class="container">
-            <a class="navbar-brand" href="dashboard.php">
-                <i class="bi bi-lightning-charge-fill me-2"></i>EHPST
-            </a>
-            <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#topNav">
-                <i class="bi bi-list fs-1 text-dark"></i>
+            <a class="navbar-brand rainbow-text" href="dashboard.php">🌈 <?= SITE_NAME ?></a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="topNav">
-                <ul class="navbar-nav ms-auto align-items-center gap-2 mt-3 mt-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link" href="dashboard.php">Панель</a>
-                    </li>
-                    <?php if($u && hasReadyParcels($u['id'])): ?>
-                    <li class="nav-item">
-                        <a class="nav-link text-success fw-bold" href="my_qr_codes.php"><i class="bi bi-qr-code me-1"></i>QR-коды</a>
-                    </li>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <?php if (isset($_SESSION['user_id'])): ?>
+                    <li class="nav-item"><a class="nav-link" href="dashboard.php"><?= t('Главная', 'Басты') ?></a></li>
+                    <li class="nav-item"><a class="nav-link" href="trip_add.php"><?= t('Новое путешествие', 'Жаңа саяхат') ?></a></li>
+                    <li class="nav-item"><a class="nav-link" href="map.php"><?= t('Карта', 'Карта') ?></a></li>
                     <?php endif; ?>
-                    <li class="nav-item">
-                        <a class="nav-link" href="track.php">Отследить</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="stamp_verify.php">Проверка марки</a>
-                    </li>
-                    <?php if($u): ?>
+                </ul>
+                <ul class="navbar-nav">
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle bg-light rounded-pill px-4 py-2 d-flex align-items-center border" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-person-circle fs-5 me-2"></i>
-                            <span><?php echo e($u['name'] ?: $u['login']); ?></span>
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <?= $lang === 'ru' ? '🇷🇺 RU' : '🇰🇿 KK' ?>
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="dashboard.php"><i class="bi bi-grid-1x2 me-2"></i>Дашборд</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="logout.php"><i class="bi bi-box-arrow-right me-2"></i>Выход</a></li>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-menu-item p-2 text-decoration-none d-block text-dark" href="?lang=ru">🇷🇺 Русский</a></li>
+                            <li><a class="dropdown-menu-item p-2 text-decoration-none d-block text-dark" href="?lang=kk">🇰🇿 Қазақша</a></li>
                         </ul>
                     </li>
+                    <?php if (isset($_SESSION['user_id'])): ?>
+                    <li class="nav-item"><a class="nav-link" href="logout.php"><?= t('Выход', 'Шығу') ?></a></li>
                     <?php else: ?>
-                    <li class="nav-item">
-                        <a class="nav-link" href="login.php">Войти</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="btn btn-primary btn-sm px-4 rounded-pill" href="register.php" style="min-height: auto; padding: 0.6rem 1.5rem;">Регистрация</a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="login.php"><?= t('Вход', 'Кіру') ?></a></li>
+                    <li class="nav-item"><a class="nav-link" href="register.php"><?= t('Регистрация', 'Тіркелу') ?></a></li>
                     <?php endif; ?>
                 </ul>
             </div>
         </div>
     </nav>
-    <div class="main-content">
-        <div class="container">
+    <div class="container pb-5">

@@ -1,158 +1,83 @@
--- EHPST Database Schema
--- Generate this on your MySQL server
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  login TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  name TEXT,
+  language TEXT DEFAULT 'ru'
+);
 
-SET NAMES utf8mb4;
-SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE IF NOT EXISTS countries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name_ru TEXT NOT NULL,
+  name_kk TEXT NOT NULL,
+  iso_code TEXT
+);
 
--- ----------------------------
--- Table structure for users
--- ----------------------------
-CREATE TABLE IF NOT EXISTS `users` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `login` varchar(50) NOT NULL,
-  `password` varchar(255) NOT NULL,
-  `name` varchar(100) DEFAULT NULL,
-  `role` enum('sender','recipient','worker') DEFAULT 'recipient',
-  `email` varchar(100) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `login` (`login`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS trips (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  description TEXT,
+  start_date DATE,
+  end_date DATE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- ----------------------------
--- Table structure for parcels
--- ----------------------------
-CREATE TABLE IF NOT EXISTS `parcels` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `track_code` varchar(20) NOT NULL,
-  `sender_id` int(11) NOT NULL,
-  `recipient_id` int(11) NOT NULL,
-  `sender_address` text DEFAULT NULL,
-  `address` text NOT NULL,
-  `weight` decimal(10,3) DEFAULT '0.000',
-  `cost` decimal(10,2) DEFAULT '0.00',
-  `tariff` varchar(10) DEFAULT 'ST',
-  `cod` decimal(10,2) DEFAULT '0.00',
-  `declared_value` decimal(10,2) DEFAULT '0.00',
-  `inventory` text DEFAULT NULL,
-  `is_paid` tinyint(1) DEFAULT '0',
-  `pay_on_delivery` tinyint(1) DEFAULT '0',
-  `is_cod_paid` tinyint(1) DEFAULT '0',
-  `is_cod_issued` tinyint(1) DEFAULT '0',
-  `is_refunded` tinyint(1) DEFAULT '0',
-  `payment_method` varchar(20) DEFAULT NULL,
-  `receipt_no` varchar(50) DEFAULT NULL,
-  `is_return` tinyint(1) DEFAULT '0',
-  `pickup_point` varchar(100) DEFAULT NULL,
-  `shelf` int(11) DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `track_code` (`track_code`),
-  KEY `sender_id` (`sender_id`),
-  KEY `recipient_id` (`recipient_id`),
-  CONSTRAINT `parcels_ibfk_1` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `parcels_ibfk_2` FOREIGN KEY (`recipient_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS trip_countries (
+  trip_id INTEGER NOT NULL,
+  country_id INTEGER NOT NULL,
+  PRIMARY KEY (trip_id, country_id),
+  FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE,
+  FOREIGN KEY (country_id) REFERENCES countries (id) ON DELETE CASCADE
+);
 
--- ----------------------------
--- Table structure for parcel_status
--- ----------------------------
-CREATE TABLE IF NOT EXISTS `parcel_status` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `parcel_id` int(11) NOT NULL,
-  `status_text` varchar(255) NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `parcel_id` (`parcel_id`),
-  CONSTRAINT `parcel_status_ibfk_1` FOREIGN KEY (`parcel_id`) REFERENCES `parcels` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS trip_days (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  trip_id INTEGER NOT NULL,
+  day_date DATE NOT NULL,
+  note TEXT,
+  FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
+);
 
--- ----------------------------
--- Table structure for notifications
--- ----------------------------
-CREATE TABLE IF NOT EXISTS `notifications` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) NOT NULL,
-  `message` text NOT NULL,
-  `type` varchar(20) DEFAULT 'info',
-  `is_read` tinyint(1) DEFAULT '0',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `user_id` (`user_id`),
-  CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS trip_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  day_id INTEGER NOT NULL,
+  category TEXT DEFAULT 'activity',
+  title TEXT NOT NULL,
+  airline TEXT,
+  hotel_name TEXT,
+  cost_usd REAL DEFAULT 0.00,
+  cost_kzt REAL DEFAULT 0.00,
+  details TEXT,
+  item_time TEXT,
+  FOREIGN KEY (day_id) REFERENCES trip_days (id) ON DELETE CASCADE
+);
 
--- ----------------------------
--- Table structure for parcel_codes
--- ----------------------------
-CREATE TABLE IF NOT EXISTS `parcel_codes` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `parcel_id` int(11) NOT NULL,
-  `code` varchar(10) NOT NULL,
-  `secret_code` varchar(20) DEFAULT NULL,
-  `code_date` date NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `parcel_id` (`parcel_id`),
-  CONSTRAINT `parcel_codes_ibfk_1` FOREIGN KEY (`parcel_id`) REFERENCES `parcels` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS photos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  trip_id INTEGER NOT NULL,
+  filename TEXT NOT NULL,
+  caption TEXT,
+  uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
+);
 
--- ----------------------------
--- Table structure for parcel_followers
--- ----------------------------
-CREATE TABLE IF NOT EXISTS `parcel_followers` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) NOT NULL,
-  `parcel_id` int(11) NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `user_parcel` (`user_id`,`parcel_id`),
-  CONSTRAINT `pf_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `pf_parcel` FOREIGN KEY (`parcel_id`) REFERENCES `parcels` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ----------------------------
--- Table structure for money_transfers
--- ----------------------------
-CREATE TABLE IF NOT EXISTS `money_transfers` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `transfer_code` varchar(20) NOT NULL,
-  `secret_code` varchar(10) DEFAULT NULL,
-  `sender_id` int(11) NOT NULL,
-  `recipient_id` int(11) NOT NULL,
-  `amount` decimal(10,2) NOT NULL,
-  `fee` decimal(10,2) DEFAULT '0.00',
-  `status` enum('pending','paid','issued','refunded') DEFAULT 'pending',
-  `payment_method` varchar(20) DEFAULT NULL,
-  `receipt_no` varchar(50) DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `transfer_code` (`transfer_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ----------------------------
--- Table structure for shifts
--- ----------------------------
-CREATE TABLE IF NOT EXISTS `shifts` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `worker_id` int(11) NOT NULL,
-  `opened_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `closed_at` timestamp NULL DEFAULT NULL,
-  `is_closed` tinyint(1) DEFAULT '0',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ----------------------------
--- Table structure for transactions
--- ----------------------------
-CREATE TABLE IF NOT EXISTS `transactions` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `shift_id` int(11) NOT NULL,
-  `worker_id` int(11) NOT NULL,
-  `type` enum('income','expense') NOT NULL,
-  `category` varchar(50) NOT NULL,
-  `amount` decimal(10,2) NOT NULL,
-  `related_id` int(11) DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-SET FOREIGN_KEY_CHECKS = 1;
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Казахстан', 'Қазақстан', 'KZ');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Россия', 'Ресей', 'RU');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Япония', 'Жапония', 'JP');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Австралия', 'Австралия', 'AU');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Китай', 'Қытай', 'CN');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Эфиопия', 'Эфиопия', 'ET');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Филиппины', 'Филиппиндер', 'PH');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Таиланд', 'Тайланд', 'TH');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Франция', 'Франция', 'FR');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Италия', 'Италия', 'IT');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('США', 'АҚШ', 'US');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Германия', 'Германия', 'DE');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Испания', 'Испания', 'ES');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Турция', 'Түркия', 'TR');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('ОАЭ', 'БАӘ', 'AE');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Великобритания', 'Ұлыбритания', 'GB');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Грузия', 'Грузия', 'GE');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Армения', 'Армения', 'AM');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Узбекистан', 'Өзбекстан', 'UZ');
+INSERT INTO countries (name_ru, name_kk, iso_code) VALUES ('Египет', 'Мысыр', 'EG');
