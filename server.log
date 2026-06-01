@@ -1,1 +1,145 @@
-[Tue May 19 18:21:48 2026] PHP 8.3.6 Development Server (http://localhost:8000) started
+[Mon Jun  1 12:32:57 2026] PHP 8.3.6 Development Server (http://0.0.0.0:8000) started
+[Mon Jun  1 12:35:59 2026] 127.0.0.1:59004 Accepted
+[Mon Jun  1 12:35:59 2026] 127.0.0.1:59004 [200]: GET /register.php
+[Mon Jun  1 12:35:59 2026] 127.0.0.1:59004 Closing
+[Mon Jun  1 12:38:19 2026] 127.0.0.1:59978 Accepted
+[Mon Jun  1 12:38:19 2026] 127.0.0.1:59978 [200]: HEAD /register.php
+[Mon Jun  1 12:38:19 2026] 127.0.0.1:59978 Closing
+[Mon Jun  1 12:39:18 2026] 127.0.0.1:41254 Accepted
+[Mon Jun  1 12:39:18 2026] 127.0.0.1:41254 [200]: GET /register.php
+[Mon Jun  1 12:39:18 2026] 127.0.0.1:41254 Closing
+[Mon Jun  1 12:40:38 2026] 127.0.0.1:47768 Accepted
+[Mon Jun  1 12:40:38 2026] 127.0.0.1:47768 [200]: GET /register.php
+[Mon Jun  1 12:40:38 2026] 127.0.0.1:47768 Closing
+[Mon Jun  1 12:40:40 2026] 127.0.0.1:43688 Accepted
+[Mon Jun  1 12:40:40 2026] 127.0.0.1:43688 [200]: POST /register.php
+[Mon Jun  1 12:40:40 2026] 127.0.0.1:43688 Closing
+[Mon Jun  1 12:40:41 2026] 127.0.0.1:43700 Accepted
+[Mon Jun  1 12:40:41 2026] 127.0.0.1:43700 [200]: GET /login.php
+[Mon Jun  1 12:40:41 2026] 127.0.0.1:43700 Closing
+[Mon Jun  1 12:40:41 2026] 127.0.0.1:43716 Accepted
+[Mon Jun  1 12:40:41 2026] 127.0.0.1:43716 [302]: POST /login.php
+[Mon Jun  1 12:40:41 2026] 127.0.0.1:43716 Closing
+[Mon Jun  1 12:40:41 2026] 127.0.0.1:43726 Accepted
+[Mon Jun  1 12:40:41 2026] 127.0.0.1:43726 [200]: GET /dashboard.php
+[Mon Jun  1 12:40:41 2026] 127.0.0.1:43726 Closing
+[Mon Jun  1 12:40:42 2026] 127.0.0.1:43730 Accepted
+[Mon Jun  1 12:40:42 2026] 127.0.0.1:43730 [200]: GET /trip_add.php
+[Mon Jun  1 12:40:42 2026] 127.0.0.1:43730 Closing
+[Mon Jun  1 12:41:56 2026] 127.0.0.1:59014 Accepted
+[Mon Jun  1 12:41:56 2026] 127.0.0.1:59014 [200]: GET /register.php
+[Mon Jun  1 12:41:56 2026] 127.0.0.1:59014 Closing
+[Mon Jun  1 12:41:57 2026] 127.0.0.1:59016 Accepted
+[Mon Jun  1 12:41:57 2026] 127.0.0.1:59016 [200]: POST /register.php
+[Mon Jun  1 12:41:57 2026] 127.0.0.1:59016 Closing
+[Mon Jun  1 12:41:58 2026] 127.0.0.1:59026 Accepted
+[Mon Jun  1 12:41:58 2026] 127.0.0.1:59026 [200]: GET /login.php
+[Mon Jun  1 12:41:58 2026] 127.0.0.1:59026 Closing
+[Mon Jun  1 12:41:59 2026] 127.0.0.1:44464 Accepted
+[Mon Jun  1 12:41:59 2026] 127.0.0.1:44464 [302]: POST /login.php
+[Mon Jun  1 12:41:59 2026] 127.0.0.1:44464 Closing
+[Mon Jun  1 12:41:59 2026] 127.0.0.1:44478 Accepted
+[Mon Jun  1 12:41:59 2026] 127.0.0.1:44478 [200]: GET /dashboard.php
+[Mon Jun  1 12:41:59 2026] 127.0.0.1:44478 Closing
+[Mon Jun  1 12:42:00 2026] 127.0.0.1:44486 Accepted
+[Mon Jun  1 12:42:00 2026] 127.0.0.1:44486 [200]: GET /trip_add.php
+[Mon Jun  1 12:42:00 2026] 127.0.0.1:44486 Closing
+[Mon Jun  1 12:42:01 2026] 127.0.0.1:44498 Accepted
+[Mon Jun  1 12:42:01 2026] 127.0.0.1:44498 [302]: POST /trip_add.php
+[Mon Jun  1 12:42:01 2026] 127.0.0.1:44498 Closing
+[Mon Jun  1 12:42:01 2026] 127.0.0.1:44514 Accepted
+[Mon Jun  1 12:42:01 2026] 127.0.0.1:44514 [200]: GET /trip_view.php?id=1
+[Mon Jun  1 12:42:01 2026] 127.0.0.1:44514 Closing
+[Mon Jun  1 12:42:03 2026] 127.0.0.1:44522 Accepted
+[Mon Jun  1 12:42:03 2026] 127.0.0.1:44522 [302]: POST /item_add.php
+[Mon Jun  1 12:42:03 2026] 127.0.0.1:44522 Closing
+[Mon Jun  1 12:42:03 2026] 127.0.0.1:44532 Accepted
+[Mon Jun  1 12:42:03 2026] 127.0.0.1:44532 [200]: GET /trip_view.php?id=1
+[Mon Jun  1 12:42:03 2026] 127.0.0.1:44532 Closing
+[Mon Jun  1 12:42:05 2026] 127.0.0.1:44534 Accepted
+[Mon Jun  1 12:42:05 2026] 127.0.0.1:44534 [200]: GET /dashboard.php
+[Mon Jun  1 12:42:05 2026] 127.0.0.1:44534 Closing
+[Mon Jun  1 12:45:07 2026] 127.0.0.1:60836 Accepted
+[Mon Jun  1 12:45:07 2026] 127.0.0.1:60836 [200]: GET /register.php
+[Mon Jun  1 12:45:07 2026] 127.0.0.1:60836 Closing
+[Mon Jun  1 12:45:09 2026] 127.0.0.1:50060 Accepted
+[Mon Jun  1 12:45:09 2026] 127.0.0.1:50060 [200]: POST /register.php
+[Mon Jun  1 12:45:09 2026] 127.0.0.1:50060 Closing
+[Mon Jun  1 12:45:10 2026] 127.0.0.1:50070 Accepted
+[Mon Jun  1 12:45:10 2026] 127.0.0.1:50070 [200]: GET /login.php
+[Mon Jun  1 12:45:10 2026] 127.0.0.1:50070 Closing
+[Mon Jun  1 12:45:10 2026] 127.0.0.1:50072 Accepted
+[Mon Jun  1 12:45:10 2026] 127.0.0.1:50072 [302]: POST /login.php
+[Mon Jun  1 12:45:10 2026] 127.0.0.1:50072 Closing
+[Mon Jun  1 12:45:10 2026] 127.0.0.1:50076 Accepted
+[Mon Jun  1 12:45:10 2026] 127.0.0.1:50076 [200]: GET /dashboard.php
+[Mon Jun  1 12:45:10 2026] 127.0.0.1:50076 Closing
+[Mon Jun  1 12:45:11 2026] 127.0.0.1:50092 Accepted
+[Mon Jun  1 12:45:11 2026] 127.0.0.1:50092 [200]: GET /trip_add.php
+[Mon Jun  1 12:45:11 2026] 127.0.0.1:50092 Closing
+[Mon Jun  1 12:45:12 2026] 127.0.0.1:50100 Accepted
+[Mon Jun  1 12:45:12 2026] 127.0.0.1:50100 [302]: POST /trip_add.php
+[Mon Jun  1 12:45:12 2026] 127.0.0.1:50100 Closing
+[Mon Jun  1 12:45:12 2026] 127.0.0.1:50104 Accepted
+[Mon Jun  1 12:45:12 2026] 127.0.0.1:50104 [200]: GET /trip_view.php?id=2
+[Mon Jun  1 12:45:12 2026] 127.0.0.1:50104 Closing
+[Mon Jun  1 12:45:15 2026] 127.0.0.1:50118 Accepted
+[Mon Jun  1 12:45:15 2026] 127.0.0.1:50118 [302]: POST /item_add.php
+[Mon Jun  1 12:45:15 2026] 127.0.0.1:50118 Closing
+[Mon Jun  1 12:45:15 2026] 127.0.0.1:50132 Accepted
+[Mon Jun  1 12:45:15 2026] 127.0.0.1:50132 [200]: GET /trip_view.php?id=2
+[Mon Jun  1 12:45:15 2026] 127.0.0.1:50132 Closing
+[Mon Jun  1 12:45:17 2026] 127.0.0.1:50140 Accepted
+[Mon Jun  1 12:45:17 2026] 127.0.0.1:50140 [200]: GET /dashboard.php
+[Mon Jun  1 12:45:17 2026] 127.0.0.1:50140 Closing
+[Mon Jun  1 13:04:06 2026] 127.0.0.1:45812 Accepted
+[Mon Jun  1 13:04:06 2026] 127.0.0.1:45812 [200]: GET /register.php
+[Mon Jun  1 13:04:06 2026] 127.0.0.1:45812 Closing
+[Mon Jun  1 13:04:08 2026] 127.0.0.1:45816 Accepted
+[Mon Jun  1 13:04:08 2026] 127.0.0.1:45816 [200]: POST /register.php
+[Mon Jun  1 13:04:08 2026] 127.0.0.1:45816 Closing
+[Mon Jun  1 13:04:09 2026] 127.0.0.1:57864 Accepted
+[Mon Jun  1 13:04:09 2026] 127.0.0.1:57864 [200]: GET /login.php
+[Mon Jun  1 13:04:09 2026] 127.0.0.1:57864 Closing
+[Mon Jun  1 13:04:09 2026] 127.0.0.1:57870 Accepted
+[Mon Jun  1 13:04:09 2026] 127.0.0.1:57870 [302]: POST /login.php
+[Mon Jun  1 13:04:09 2026] 127.0.0.1:57870 Closing
+[Mon Jun  1 13:04:09 2026] 127.0.0.1:57874 Accepted
+[Mon Jun  1 13:04:09 2026] 127.0.0.1:57874 [200]: GET /dashboard.php
+[Mon Jun  1 13:04:09 2026] 127.0.0.1:57874 Closing
+[Mon Jun  1 13:04:10 2026] 127.0.0.1:57878 Accepted
+[Mon Jun  1 13:04:10 2026] 127.0.0.1:57878 [200]: GET /trip_add.php
+[Mon Jun  1 13:04:10 2026] 127.0.0.1:57878 Closing
+[Mon Jun  1 13:06:31 2026] 127.0.0.1:59220 Accepted
+[Mon Jun  1 13:06:31 2026] 127.0.0.1:59220 [200]: GET /register.php
+[Mon Jun  1 13:06:31 2026] 127.0.0.1:59220 Closing
+[Mon Jun  1 13:06:33 2026] 127.0.0.1:59236 Accepted
+[Mon Jun  1 13:06:33 2026] 127.0.0.1:59236 [200]: POST /register.php
+[Mon Jun  1 13:06:33 2026] 127.0.0.1:59236 Closing
+[Mon Jun  1 13:06:34 2026] 127.0.0.1:59250 Accepted
+[Mon Jun  1 13:06:34 2026] 127.0.0.1:59250 [200]: GET /login.php
+[Mon Jun  1 13:06:34 2026] 127.0.0.1:59250 Closing
+[Mon Jun  1 13:06:34 2026] 127.0.0.1:59260 Accepted
+[Mon Jun  1 13:06:34 2026] 127.0.0.1:59260 [302]: POST /login.php
+[Mon Jun  1 13:06:34 2026] 127.0.0.1:59260 Closing
+[Mon Jun  1 13:06:34 2026] 127.0.0.1:59270 Accepted
+[Mon Jun  1 13:06:34 2026] 127.0.0.1:59270 [200]: GET /dashboard.php
+[Mon Jun  1 13:06:34 2026] 127.0.0.1:59270 Closing
+[Mon Jun  1 13:06:35 2026] 127.0.0.1:59280 Accepted
+[Mon Jun  1 13:06:35 2026] 127.0.0.1:59280 [200]: GET /trip_add.php
+[Mon Jun  1 13:06:35 2026] 127.0.0.1:59280 Closing
+[Mon Jun  1 13:06:36 2026] 127.0.0.1:59296 Accepted
+[Mon Jun  1 13:06:36 2026] 127.0.0.1:59296 [302]: POST /trip_add.php
+[Mon Jun  1 13:06:36 2026] 127.0.0.1:59296 Closing
+[Mon Jun  1 13:06:36 2026] 127.0.0.1:59300 Accepted
+[Mon Jun  1 13:06:36 2026] 127.0.0.1:59300 [200]: GET /trip_view.php?id=3
+[Mon Jun  1 13:06:36 2026] 127.0.0.1:59300 Closing
+[Mon Jun  1 13:06:38 2026] 127.0.0.1:59304 Accepted
+[Mon Jun  1 13:06:38 2026] 127.0.0.1:59304 [302]: POST /item_add.php
+[Mon Jun  1 13:06:38 2026] 127.0.0.1:59304 Closing
+[Mon Jun  1 13:06:38 2026] 127.0.0.1:59316 Accepted
+[Mon Jun  1 13:06:38 2026] 127.0.0.1:59316 [200]: GET /trip_view.php?id=3
+[Mon Jun  1 13:06:38 2026] 127.0.0.1:59316 Closing
+[Mon Jun  1 13:06:40 2026] 127.0.0.1:41606 Accepted
+[Mon Jun  1 13:06:40 2026] 127.0.0.1:41606 [200]: GET /dashboard.php
+[Mon Jun  1 13:06:40 2026] 127.0.0.1:41606 Closing

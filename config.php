@@ -1,28 +1,52 @@
 <?php
 // config.php
-// ВНИМАНИЕ: Замените данные подключения на ваши реальные данные.
-// Для безопасности рекомендуется использовать переменные окружения.
-$host = 'localhost';
-$db   = 'f1211429_ps';
-$user = 'f1211429_ps';
-$pass = 'Alex993399@@'; // Пароль от базы данных
-$charset = 'utf8mb4';
+session_start();
 
-$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-$options = [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES   => false,
-];
+// Database configuration
+// Using SQLite because MySQL is not reachable in this environment
+$db_file = __DIR__ . '/travel.db';
+$dsn = "sqlite:$db_file";
 
 try {
-     $pdo = new PDO($dsn, $user, $pass, $options);
+     $pdo = new PDO($dsn);
+     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+     $pdo->exec("PRAGMA foreign_keys = ON;");
 } catch (\PDOException $e) {
-     // В режиме разработки можно вывести ошибку, но для безопасности лучше оставить заглушку
-     die("Ошибка подключения к базе данных. Проверьте настройки в config.php.");
+     error_log($e->getMessage());
+     die("Database connection error.");
 }
 
-// ГЛОБАЛЬНЫЕ НАСТРОЙКИ ОРГАНИЗАЦИИ
-define('ORG_INVITE_CODE', 'EHPST-2024-WORK'); // Код для регистрации сотрудников
-define('SYSTEM_VERSION', '5.5.1-MASTER');
+define('INVITE_CODE', 'HUSBANDS2024');
+define('SITE_NAME', 'Our Travel Adventures');
+
+// Language handling
+if (isset($_GET['lang'])) {
+    $_SESSION['lang'] = $_GET['lang'] === 'kk' ? 'kk' : 'ru';
+}
+if (!isset($_SESSION['lang'])) {
+    $_SESSION['lang'] = 'ru';
+}
+
+$lang = $_SESSION['lang'];
+
+function t($ru, $kk) {
+    global $lang;
+    return $lang === 'kk' ? $kk : $ru;
+}
+
+function check_auth() {
+    if (!isset($_SESSION['user_id'])) {
+        header('Location: login.php');
+        exit;
+    }
+}
+
+// Global user variable if logged in
+$u = null;
+if (isset($_SESSION['user_id'])) {
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $u = $stmt->fetch();
+}
 ?>

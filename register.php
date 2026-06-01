@@ -1,73 +1,68 @@
 <?php
-// register.php - Регистрация обычных пользователей
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/functions.php';
+require_once 'config.php';
 
-$message = '';
 $error = '';
+$success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $login = trim($_POST['login'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $name = trim($_POST['name'] ?? '');
+    $login = trim($_POST['login']);
+    $name = trim($_POST['name']);
+    $password = $_POST['password'];
+    $invite = trim($_POST['invite']);
 
-    if (empty($login) || empty($password) || empty($name)) {
-        $error = "Заполните все поля.";
+    if ($invite !== INVITE_CODE) {
+        $error = t('Неверный код приглашения', 'Қате шақыру коды');
     } else {
-        try {
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE login = :l");
-            $stmt->execute(['l' => $login]);
-            if ($stmt->fetch()) {
-                $error = "Логин уже занят.";
-            } else {
-                $hash = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("INSERT INTO users (login, password, name, role) VALUES (:l, :p, :n, 'recipient')");
-                $stmt->execute(['l' => $login, 'p' => $hash, 'n' => $name]);
-                $message = "Регистрация успешна! Теперь вы можете войти.";
-            }
-        } catch (PDOException $e) { $error = "Ошибка: " . $e->getMessage(); }
+        $stmt = $pdo->prepare("SELECT id FROM users WHERE login = ?");
+        $stmt->execute([$login]);
+        if ($stmt->fetch()) {
+            $error = t('Этот логин уже занят', 'Бұл логин бос емес');
+        } else {
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare("INSERT INTO users (login, name, password) VALUES (?, ?, ?)");
+            $stmt->execute([$login, $name, $hashed]);
+            $success = t('Регистрация прошла успешно! Теперь вы можете войти.', 'Тіркеу сәтті өтті! Енді жүйеге кіре аласыз.');
+        }
     }
 }
 
-$page_title = "Регистрация — EHPST";
-include __DIR__ . '/header.php';
+include 'header.php';
 ?>
-
-<div class="row justify-content-center py-5">
-    <div class="col-md-5">
-        <div class="card shadow-lg border-0 rounded-4">
-            <div class="card-header bg-primary text-white p-4 text-center">
-                <h4 class="mb-0 fw-bold">Создать аккаунт</h4>
-            </div>
-            <div class="card-body p-4 p-md-5">
-                <?php if ($message): ?><div class="alert alert-success"><?php echo $message; ?></div><?php endif; ?>
-                <?php if ($error): ?><div class="alert alert-danger"><?php echo $error; ?></div><?php endif; ?>
-
-                <form method="post">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Ваше ФИО</label>
-                        <input type="text" name="name" class="form-control" required placeholder="Иванов Иван Иванович">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Логин</label>
-                        <input type="text" name="login" class="form-control" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">Пароль</label>
-                        <input type="password" name="password" class="form-control" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-pill">ЗАРЕГИСТРИРОВАТЬСЯ</button>
-                </form>
-                <div class="text-center mt-3">
-                    <a href="login.php" class="text-muted small">Уже есть аккаунт? Войти</a>
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <div class="card p-4">
+            <h2 class="text-center mb-4"><?= t('Регистрация', 'Тіркелу') ?></h2>
+            <?php if ($error): ?>
+                <div class="alert alert-danger"><?= $error ?></div>
+            <?php endif; ?>
+            <?php if ($success): ?>
+                <div class="alert alert-success"><?= $success ?></div>
+            <?php else: ?>
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label" for="name"><?= t('Имя', 'Есім') ?></label>
+                    <input type="text" name="name" id="name" class="form-control" required autocomplete="name">
                 </div>
-                <hr>
-                <div class="text-center">
-                    <a href="register_worker.php" class="text-muted x-small">Регистрация для сотрудников</a>
+                <div class="mb-3">
+                    <label class="form-label" for="login"><?= t('Логин', 'Логин') ?></label>
+                    <input type="text" name="login" id="login" class="form-control" required autocomplete="username">
                 </div>
+                <div class="mb-3">
+                    <label class="form-label" for="password"><?= t('Пароль', 'Құпия сөз') ?></label>
+                    <input type="password" name="password" id="password" class="form-control" required autocomplete="new-password">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="invite"><?= t('Код приглашения', 'Шақыру коды') ?></label>
+                    <input type="text" name="invite" id="invite" class="form-control" required>
+                    <div class="form-text"><?= t('Спросите у мужа :)', 'Күйеуіңізден сұраңыз :)') ?></div>
+                </div>
+                <button type="submit" class="btn btn-rainbow w-100"><?= t('Зарегистрироваться', 'Тіркелу') ?></button>
+            </form>
+            <?php endif; ?>
+            <div class="mt-3 text-center">
+                <a href="login.php" class="text-decoration-none"><?= t('Уже есть аккаунт? Войдите', 'Аккаунт бар ма? Кіріңіз') ?></a>
             </div>
         </div>
     </div>
 </div>
-
-<?php include __DIR__ . '/footer.php'; ?>
+<?php include 'footer.php'; ?>
