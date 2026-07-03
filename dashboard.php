@@ -50,7 +50,7 @@ try {
     $stmt->execute(['uid' => $user_id]);
     $notifications = $stmt->fetchAll();
 
-    // Статистика
+    // ��татистика
     if ($role === 'worker') {
         $total_parcels = (int)$pdo->query("SELECT COUNT(*) FROM parcels")->fetchColumn();
         $total_revenue = (float)$pdo->query("SELECT IFNULL(SUM(cost),0) FROM parcels")->fetchColumn();
@@ -137,19 +137,127 @@ include __DIR__ . '/header.php';
 ?>
 
 <style>
-    :root { --purple: #6f42c1; --purple-dark: #59359a; }
-    .dashboard-card { border-radius: 1.25rem; border: none; box-shadow: 0 8px 30px rgba(0,0,0,0.04); transition: 0.3s; }
-    .btn-purple { background: var(--purple); color: #fff; border-radius: 50px; font-weight: 700; padding: 0.7rem 1.6rem; border: none; }
-    .btn-purple:hover { background: var(--purple-dark); color: #fff; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(111, 66, 193, 0.3); }
-    .status-badge { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; padding: 0.4rem 0.8rem; border-radius: 50px; }
-    .parcel-row:hover { background: rgba(67, 97, 238, 0.02); }
-    .qr-fab { position: fixed; bottom: 30px; right: 30px; z-index: 1050; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(25, 135, 84, 0.4); }
-    .card-mobile { border-radius: 1rem; border: 1px solid rgba(0,0,0,0.05); margin-bottom: 1rem; }
+    :root { 
+        --purple: #6f42c1; 
+        --purple-dark: #59359a; 
+        --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --gradient-success: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --gradient-info: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .dashboard-card { 
+        border-radius: 1.25rem; 
+        border: none; 
+        box-shadow: 0 8px 30px rgba(0,0,0,0.08); 
+        transition: 0.3s ease;
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+    }
+    
+    .btn-purple { 
+        background: var(--purple); 
+        color: #fff; 
+        border-radius: 50px; 
+        font-weight: 700; 
+        padding: 0.7rem 1.6rem; 
+        border: none; 
+        transition: 0.3s ease;
+    }
+    
+    .btn-purple:hover { 
+        background: var(--purple-dark); 
+        color: #fff; 
+        transform: translateY(-2px); 
+        box-shadow: 0 8px 20px rgba(111, 66, 193, 0.4); 
+    }
+    
+    .status-badge { 
+        font-size: 0.7rem; 
+        font-weight: 800; 
+        text-transform: uppercase; 
+        padding: 0.5rem 0.9rem; 
+        border-radius: 50px; 
+        letter-spacing: 0.5px;
+    }
+    
+    .parcel-row:hover { 
+        background: rgba(102, 126, 234, 0.05); 
+        transition: 0.2s ease;
+    }
+    
+    .qr-fab { 
+        position: fixed; 
+        bottom: 30px; 
+        right: 30px; 
+        z-index: 1050; 
+        width: 65px; 
+        height: 65px; 
+        border-radius: 50%; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        transition: 0.3s ease;
+    }
+    
+    .qr-fab:hover {
+        transform: scale(1.1);
+        box-shadow: 0 12px 35px rgba(0,0,0,0.3);
+    }
+    
+    .card-mobile { 
+        border-radius: 1rem; 
+        border: 1px solid rgba(0,0,0,0.05); 
+        margin-bottom: 1rem; 
+        transition: 0.3s ease;
+    }
+    
+    .card-mobile:hover {
+        border-color: rgba(102, 126, 234, 0.2);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+    }
+    
+    .hero-card {
+        background: var(--gradient-primary) !important;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .tool-btn {
+        transition: 0.3s ease;
+        border: 2px solid transparent;
+    }
+    
+    .tool-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+    
+    .animate-fade-in {
+        animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes pulse-subtle {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    .animate-pulse {
+        animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
 </style>
 
 <!-- Prominent Master QR Alert -->
 <?php if ($has_awaiting && count($ready_to_pickup) > 1): ?>
-<div class="alert alert-primary rounded-4 shadow-sm border-0 mb-4 animate-fade-in d-flex align-items-center justify-content-between p-4" style="background: linear-gradient(135deg, #4361ee, #4895ef); color: white;">
+<div class="alert alert-primary rounded-4 shadow-sm border-0 mb-4 animate-fade-in d-flex align-items-center justify-content-between p-4" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
     <div class="d-flex align-items-center">
         <div class="bg-white bg-opacity-20 p-3 rounded-circle me-3">
             <i class="bi bi-qr-code-scan fs-3"></i>
@@ -163,9 +271,9 @@ include __DIR__ . '/header.php';
 </div>
 <?php endif; ?>
 
-<!-- Floating QR -->
+<!-- Database Error Alert -->
 <?php if (isset($db_error)): ?>
-    <div class="alert alert-danger rounded-4 shadow-sm p-4 mb-4">
+    <div class="alert alert-danger rounded-4 shadow-sm p-4 mb-4 animate-fade-in">
         <h4 class="fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Ошибка базы данных</h4>
         <p class="mb-0"><?php echo e($db_error); ?></p>
         <hr>
@@ -173,51 +281,81 @@ include __DIR__ . '/header.php';
     </div>
 <?php endif; ?>
 
+<!-- Floating QR Button -->
 <?php if ($has_awaiting): ?>
-<a href="my_qr_codes.php" class="qr-fab btn btn-success animate-pulse"><i class="bi bi-qr-code fs-3"></i></a>
+<a href="my_qr_codes.php" class="qr-fab btn btn-success animate-pulse"><i class="bi bi-qr-code fs-4"></i></a>
 <?php endif; ?>
 
 <div class="row g-4 animate-fade-in">
     <div class="col-lg-8">
-        <!-- WELCOME -->
-        <div class="card dashboard-card bg-primary text-white p-4 mb-4 position-relative overflow-hidden">
+        <!-- WELCOME HERO -->
+        <div class="card dashboard-card hero-card text-white p-5 mb-4 position-relative overflow-hidden">
             <div class="position-relative z-index-2">
-                <h3 class="fw-bold mb-1">Привет, <?php echo e($name); ?>! 👋</h3>
-                <p class="opacity-75 mb-4">Система EHPST. Ваш ID: <span class="fw-bold">#<?php echo $user_id; ?></span></p>
+                <h2 class="fw-bold mb-2" style="font-size: 1.8rem;">Привет, <?php echo e($name); ?>! 👋</h2>
+                <p class="opacity-75 mb-4">Система EHPST | ID: <span class="fw-bold">#<?php echo $user_id; ?></span></p>
+                
                 <div class="d-flex gap-2 flex-wrap">
-                    <a href="parcel_add.php" class="btn btn-purple shadow-sm"><i class="bi bi-plus-lg me-2"></i>Оформить</a>
+                    <a href="parcel_add.php" class="btn btn-light text-dark fw-bold rounded-pill px-4 tool-btn shadow-sm">
+                        <i class="bi bi-plus-lg me-2"></i>Оформить
+                    </a>
+                    
                     <?php if($role === 'worker'): ?>
-                        <a href="parcel_issue.php" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm border-0"><i class="bi bi-box-arrow-right me-2"></i>Выдача</a>
-                        <a href="pvz_dashboard.php" class="btn btn-info text-white rounded-pill px-4 fw-bold shadow-sm border-0"><i class="bi bi-shop me-2"></i>Склад ПВЗ</a>
-                        <a href="shift_manage.php" class="btn btn-dark rounded-pill px-4 fw-bold shadow-sm border-0"><i class="bi bi-calculator me-2"></i>Касса</a>
+                        <a href="parcel_issue.php" class="btn btn-warning text-dark fw-bold rounded-pill px-4 tool-btn shadow-sm">
+                            <i class="bi bi-box-arrow-right me-2"></i>Выдача
+                        </a>
+                        <a href="pvz_dashboard.php" class="btn btn-info text-white fw-bold rounded-pill px-4 tool-btn shadow-sm">
+                            <i class="bi bi-shop me-2"></i>Склад ПВЗ
+                        </a>
+                        <a href="shift_manage.php" class="btn btn-dark fw-bold rounded-pill px-4 tool-btn shadow-sm">
+                            <i class="bi bi-calculator me-2"></i>Касса
+                        </a>
                     <?php endif; ?>
+                    
                     <?php if($has_awaiting): ?>
-                        <a href="my_qr_codes.php" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm text-dark border-0"><i class="bi bi-qr-code-scan me-2"></i>QR-КОДЫ</a>
+                        <a href="my_qr_codes.php" class="btn btn-light text-dark fw-bold rounded-pill px-4 tool-btn shadow-sm">
+                            <i class="bi bi-qr-code-scan me-2"></i>QR-КОДЫ
+                        </a>
                     <?php endif; ?>
                 </div>
             </div>
-            <i class="bi bi-lightning-charge position-absolute end-0 bottom-0 mb-n5 me-n4 opacity-10" style="font-size: 12rem;"></i>
+            <i class="bi bi-lightning-charge position-absolute end-0 bottom-0 mb-n4 me-n3 opacity-10" style="font-size: 10rem;"></i>
         </div>
 
-        <?php if($role === 'worker'): ?>
         <!-- WORKER TOOLS -->
+        <?php if($role === 'worker'): ?>
         <div class="card dashboard-card bg-white p-4 mb-4 border-start border-4 border-success shadow-sm">
-            <h6 class="fw-bold text-success text-uppercase small mb-3"><i class="bi bi-gear-fill me-2"></i>Инструменты сотрудника</h6>
-            <div class="d-flex gap-2 flex-wrap">
-                <a href="transfer_add.php" class="btn btn-outline-primary fw-bold rounded-pill px-3 btn-sm"><i class="bi bi-send-fill me-1"></i> Оформить перевод</a>
-                <a href="transfer_list.php" class="btn btn-outline-primary fw-bold rounded-pill px-3 btn-sm"><i class="bi bi-cash-stack me-1"></i> Упр. переводами</a>
-                <a href="parcel_cod_refund.php" class="btn btn-outline-danger fw-bold rounded-pill px-3 btn-sm"><i class="bi bi-arrow-counterclockwise me-1"></i> Возврат нал.плат.</a>
-                <a href="transfer_refund_issue.php" class="btn btn-outline-danger fw-bold rounded-pill px-3 btn-sm"><i class="bi bi-arrow-return-left me-1"></i> Выплата возвр. пер.</a>
+            <h6 class="fw-bold text-success text-uppercase small mb-4"><i class="bi bi-gear-fill me-2"></i>Инструменты сотрудника</h6>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <a href="transfer_add.php" class="btn btn-outline-primary fw-bold w-100 rounded-3 px-3 tool-btn">
+                        <i class="bi bi-send-fill me-2"></i>Оформить перевод
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <a href="transfer_list.php" class="btn btn-outline-primary fw-bold w-100 rounded-3 px-3 tool-btn">
+                        <i class="bi bi-cash-stack me-2"></i>Денежные переводы
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <a href="parcel_cod_refund.php" class="btn btn-outline-danger fw-bold w-100 rounded-3 px-3 tool-btn">
+                        <i class="bi bi-arrow-counterclockwise me-2"></i>Возврат нал.плат.
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <a href="transfer_refund_issue.php" class="btn btn-outline-danger fw-bold w-100 rounded-3 px-3 tool-btn">
+                        <i class="bi bi-arrow-return-left me-2"></i>Выплата возвр.
+                    </a>
+                </div>
             </div>
         </div>
         <?php endif; ?>
 
         <!-- PARCEL LIST -->
         <div class="card dashboard-card bg-white shadow-sm">
-            <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold">Список отправлений</h5>
+            <div class="card-header bg-white py-4 px-4 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-boxes me-2"></i>Список отправлений</h5>
                 <form method="get" class="d-flex gap-2">
-                    <input type="text" name="q" class="form-control form-control-sm rounded-pill px-3" placeholder="Поиск..." value="<?php echo e($q); ?>">
+                    <input type="text" name="q" class="form-control form-control-sm rounded-pill px-3" placeholder="Поиск по трек-коду..." value="<?php echo e($q); ?>">
                     <select name="filter" class="form-select form-select-sm rounded-pill shadow-none" onchange="this.form.submit()">
                         <option value="all" <?php echo $filter==='all'?'selected':'';?>>Все</option>
                         <option value="in_transit" <?php echo $filter==='in_transit'?'selected':'';?>>В пути</option>
@@ -231,7 +369,7 @@ include __DIR__ . '/header.php';
             <div class="table-responsive d-none d-md-block">
                 <table class="table align-middle mb-0">
                     <thead class="bg-light">
-                        <tr class="x-small text-muted text-uppercase">
+                        <tr class="x-small text-muted text-uppercase" style="letter-spacing: 0.5px;">
                             <th class="ps-4">Посылка</th>
                             <th>Маршрут</th>
                             <th>Статус / Оплата</th>
@@ -242,7 +380,7 @@ include __DIR__ . '/header.php';
                         <?php if($parcels): foreach($parcels as $p): ?>
                         <tr class="parcel-row border-bottom">
                             <td class="ps-4 py-3">
-                                <div class="fw-bold text-dark mb-1"><?php echo e($p['track_code']); ?></div>
+                                <div class="fw-bold text-dark mb-1" style="font-size: 0.95rem;"><?php echo e($p['track_code']); ?></div>
                                 <div class="x-small text-muted fw-bold"><?php echo e($p['tariff']); ?> · <?php echo number_format($p['weight'], 3); ?> кг</div>
                                 <?php if($p['delivery_partner']): ?>
                                     <span class="badge bg-info bg-opacity-10 text-info x-small mt-1 fw-bold"><?php echo strtoupper(e($p['delivery_partner'])); ?></span>
@@ -256,15 +394,15 @@ include __DIR__ . '/header.php';
                             </td>
                             <td>
                                 <div class="small fw-bold text-dark mb-1"><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login'] ?: $p['recipient_name_ext']); ?></div>
-                                <div class="x-small text-muted text-truncate" style="max-width: 180px;"><i class="bi bi-geo-alt me-1"></i><?php echo e($p['address']); ?></div>
+                                <div class="x-small text-muted text-truncate" style="max-width: 200px;"><i class="bi bi-geo-alt me-1"></i><?php echo e($p['address']); ?></div>
                             </td>
                             <td>
-                                <div class="mb-1">
-                                    <?php if ($p['is_paid']): ?><span class="badge bg-success bg-opacity-10 text-success x-small fw-bold">ОПЛАЧЕНО</span>
-                                    <?php else: ?><span class="badge bg-danger bg-opacity-10 text-danger x-small fw-bold">ЖДЕТ ОПЛАТЫ</span><?php endif; ?>
+                                <div class="mb-2">
+                                    <?php if ($p['is_paid']): ?><span class="badge bg-success bg-opacity-10 text-success x-small fw-bold">✓ ОПЛАЧЕНО</span>
+                                    <?php else: ?><span class="badge bg-danger bg-opacity-10 text-danger x-small fw-bold">⚠ ЖДЕТ ОПЛАТЫ</span><?php endif; ?>
 
                                     <?php if ($p['cod'] > 0): ?>
-                                        <span class="badge <?php echo $p['is_cod_paid'] ? 'bg-success' : 'bg-warning'; ?> bg-opacity-10 text-<?php echo $p['is_cod_paid'] ? 'success' : 'dark'; ?> x-small fw-bold ms-1">НАЛ.ПЛ: <?php echo $p['is_cod_paid'] ? 'ОК' : 'ЖДЕТ'; ?></span>
+                                        <span class="badge <?php echo $p['is_cod_paid'] ? 'bg-success' : 'bg-warning'; ?> bg-opacity-10 text-<?php echo $p['is_cod_paid'] ? 'success' : 'dark'; ?> x-small fw-bold">НАЛ</span>
                                     <?php endif; ?>
                                 </div>
                                 <?php
@@ -280,7 +418,7 @@ include __DIR__ . '/header.php';
                             </td>
                         </tr>
                         <?php endforeach; else: ?>
-                        <tr><td colspan="4" class="text-center py-5 text-muted fw-bold">Список посылок пуст</td></tr>
+                        <tr><td colspan="4" class="text-center py-5 text-muted fw-bold">Нет посылок</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -305,7 +443,7 @@ include __DIR__ . '/header.php';
                                 <div><?php echo e($p['s_name'] ?: $p['s_login']); ?> → <?php echo e($p['r_name'] ?: $p['r_login'] ?: $p['recipient_name_ext']); ?></div>
                                 <div class="text-muted x-small"><?php echo e($p['address']); ?></div>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
                                 <div class="x-small">
                                     <?php if ($p['is_paid']): ?><span class="badge bg-success bg-opacity-10 text-success fw-bold">ОПЛАЧЕНО</span>
                                     <?php else: ?><span class="badge bg-danger bg-opacity-10 text-danger fw-bold">ЖДЕТ ОПЛАТЫ</span><?php endif; ?>
@@ -348,15 +486,15 @@ include __DIR__ . '/header.php';
         <!-- NOTIFICATIONS -->
         <div class="card dashboard-card bg-white p-0 overflow-hidden shadow-sm">
             <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold">Уведомления</h6>
+                <h6 class="mb-0 fw-bold"><i class="bi bi-bell me-2"></i>Уведомления</h6>
                 <?php if($unreadCount>0): ?><span class="badge bg-danger rounded-pill"><?php echo $unreadCount; ?></span><?php endif; ?>
             </div>
-            <div class="list-group list-group-flush">
+            <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
                 <?php if($notifications): foreach($notifications as $n): ?>
                     <div class="list-group-item p-3 border-0 border-bottom <?php echo $n['is_read']?'':'bg-light'; ?>">
                         <div class="small mb-2 fw-bold text-dark" style="line-height:1.4"><?php echo e($n['message']); ?></div>
                         <div class="d-flex gap-3">
-                            <?php if(!$n['is_read']): ?><a href="notifications.php?action=read&id=<?php echo $n['id']; ?>" class="x-small text-primary fw-bold text-decoration-none">ПРОЧИТАНО</a><?php endif; ?>
+                            <?php if(!$n['is_read']): ?><a href="notifications.php?action=read&id=<?php echo $n['id']; ?>" class="x-small text-primary fw-bold text-decoration-none">ПРОЧИТАТЬ</a><?php endif; ?>
                             <a href="notifications.php?action=delete&id=<?php echo $n['id']; ?>" class="x-small text-danger fw-bold text-decoration-none">УДАЛИТЬ</a>
                         </div>
                     </div>
@@ -378,10 +516,10 @@ function renderActionMenu($p, $user_id, $role, $is_mobile = false) {
         <button class="btn btn-light <?php echo $is_mobile ? 'btn-md' : 'btn-sm'; ?> rounded-pill px-3 shadow-none border fw-bold" data-bs-toggle="dropdown" data-bs-boundary="viewport">
             <i class="bi bi-three-dots<?php echo $is_mobile ? '-vertical' : ''; ?> me-1"></i> Опции
         </button>
-        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-3" style="min-width: 280px; max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch;">
+        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-2" style="min-width: 280px; max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch;">
 
             <?php if (($is_p_recip || $is_p_sender_ret) && (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false)): ?>
-                <li><a class="dropdown-item py-2 fw-bold text-success" href="my_qr_codes.php"><i class="bi bi-qr-code-scan me-2"></i>МАСТЕР QR (ВСЕ ПОСЫЛКИ)</a></li>
+                <li><a class="dropdown-item py-2 fw-bold text-success" href="my_qr_codes.php"><i class="bi bi-qr-code-scan me-2"></i>МАСТЕР QR (ВСЕ)</a></li>
                 <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_pickup_qr.php?id=<?php echo $p['id']; ?>"><i class="bi bi-qr-code me-2"></i>QR-КОД ЭТОЙ ПОСЫЛКИ</a></li>
                 <li><hr class="dropdown-divider"></li>
             <?php endif; ?>
@@ -400,11 +538,11 @@ function renderActionMenu($p, $user_id, $role, $is_mobile = false) {
             <?php endif; ?>
 
             <?php if ($role === 'worker' && $p['is_cod_paid'] && !$p['is_cod_issued']): ?>
-                <li><a class="dropdown-item py-2 fw-bold text-info" href="parcel_cod_issue.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash me-2"></i>ВЫДАТЬ НАЛ.ПЛ. ОТПРАВИТЕЛЮ</a></li>
+                <li><a class="dropdown-item py-2 fw-bold text-info" href="parcel_cod_issue.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash me-2"></i>ВЫДАТЬ НАЛ.ПЛ. ОТПРАВИ</a></li>
             <?php endif; ?>
 
             <?php if ($role === 'worker' && $p['refund_code'] && $p['is_cod_paid'] && !$p['cod_refund_issued']): ?>
-                <li><a class="dropdown-item py-2 fw-bold text-danger" href="parcel_cod_refund.php?q=<?php echo $p['refund_code']; ?>"><i class="bi bi-arrow-counterclockwise me-2"></i>ВЕРНУТЬ НАЛ.ПЛ. ПОЛУЧАТЕЛЮ</a></li>
+                <li><a class="dropdown-item py-2 fw-bold text-danger" href="parcel_cod_refund.php?q=<?php echo $p['refund_code']; ?>"><i class="bi bi-arrow-counterclockwise me-2"></i>ВЕРНУТЬ</a></li>
             <?php endif; ?>
 
             <?php if ($role === 'worker' && $p['pickup_point'] && !$p['shelf']): ?>
@@ -416,22 +554,22 @@ function renderActionMenu($p, $user_id, $role, $is_mobile = false) {
                 <li><a class="dropdown-item py-2 fw-bold text-success" href="parcel_status.php?id=<?php echo $p['id']; ?>"><i class="bi bi-plus-circle me-2"></i>Новый статус</a></li>
                 <li><a class="dropdown-item py-2" href="parcel_edit.php?id=<?php echo $p['id']; ?>"><i class="bi bi-pencil me-2 text-warning"></i>Правка данных</a></li>
                 <?php if($p['is_paid'] && !$p['is_return']): ?>
-                    <li><a class="dropdown-item py-2 text-danger" href="javascript:void(0)" onclick="confReturn(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-arrow-return-left me-2"></i>Оформить возврат</a></li>
+                    <li><a class="dropdown-item py-2 text-danger" href="javascript:void(0)" onclick="confReturn(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-arrow-return-left me-2"></i>Возврат</a></li>
                 <?php endif; ?>
                 <?php if ($p['cod_return_required']): ?>
-                    <li><a class="dropdown-item py-2 fw-bold text-danger" href="parcel_cod_repay.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash me-2"></i>ПРИНЯТЬ ДОЛГ ПО НАЛ.ПЛ.</a></li>
+                    <li><a class="dropdown-item py-2 fw-bold text-danger" href="parcel_cod_repay.php?id=<?php echo $p['id']; ?>"><i class="bi bi-cash me-2"></i>ПРИНЯТЬ ДОЛГ ПО НАЛ</a></li>
                 <?php endif; ?>
             <?php endif; ?>
 
             <?php if (($is_p_recip || $is_p_sender_ret) && (mb_stripos($st, 'ожидает') !== false || mb_stripos($st, 'прибыло') !== false)): ?>
                 <?php if ($is_p_recip): ?>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confRefuse(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-x-circle me-2"></i>ОТКАЗ ОТ ПОСЫЛКИ</a></li>
+                    <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confRefuse(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-x-circle me-2"></i>ОТКАЗАТЬСЯ</a></li>
                 <?php endif; ?>
             <?php endif; ?>
 
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confDel(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-trash3 me-2"></i>Удалить из списка</a></li>
+            <li><a class="dropdown-item py-2 text-danger fw-bold" href="javascript:void(0)" onclick="confDel(<?php echo $p['id']; ?>, '<?php echo e($p['track_code']); ?>')"><i class="bi bi-trash3 me-2"></i>УДАЛИТЬ</a></li>
         </ul>
     </div>
     <?php
@@ -445,21 +583,55 @@ function confDel(id, track) {
         window.location.href = 'parcel_delete.php?id=' + id;
     }
 }
+
 function confReturn(id, track) {
     if (confirm('Оформить возврат для посылки ' + track + '? Она будет отправлена обратно отправителю.')) {
         window.location.href = 'parcel_return.php?id=' + id;
     }
 }
+
 function confRefuse(id, track) {
     if (confirm('Вы действительно хотите ОТКАЗАТЬСЯ от получения посылки ' + track + '? Она будет немедленно отправлена обратно.')) {
         window.location.href = 'parcel_refuse.php?id=' + id;
     }
 }
 
+function openScanner() {
+    const modal = new bootstrap.Modal(document.getElementById('scanner_modal'));
+    modal.show();
+    
+    // Инициализация сканера
+    if (typeof Quagga !== 'undefined') {
+        Quagga.init({
+            inputStream: {
+                name: 'Live',
+                type: 'LiveStream',
+                target: document.querySelector('#scanner_viewport'),
+                constraints: { facingMode: 'environment' }
+            },
+            decoder: { readers: ['code128_reader', 'ean_reader', 'ean_8_reader'] }
+        }, function(err) {
+            if (err) { console.error(err); return; }
+            Quagga.start();
+            Quagga.onDetected(function(result) {
+                const code = result.codeResult.code;
+                if (code) {
+                    Quagga.stop();
+                    modal.hide();
+                    window.location.href = 'parcel_history.php?q=' + encodeURIComponent(code);
+                }
+            });
+        });
+    }
+}
+
 <?php if($loyalty_card): ?>
     new QRCode(document.getElementById("card-qr"), {
         text: "<?php echo $loyalty_card['card_number']; ?>",
-        width: 100, height: 100
+        width: 100, 
+        height: 100,
+        colorDark: "#000000",
+        colorLight: "#ffffff"
     });
 <?php endif; ?>
 </script>
